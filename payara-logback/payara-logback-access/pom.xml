@@ -35,11 +35,7 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-                        <Import-Package>org.eclipse.jetty.*;resolution:=optional,
-                            org.codehaus.*;resolution:=optional,
-                            org.apache.coyote;resolution:=optional,
-                            !ch.qos.logback.*,org.apache.catalina;version="[4.1,6)",*</Import-Package>
-                        <Export-Package>io.github.goodies.payara*</Export-Package>
+                        <Import-Package>org.apache.catalina;version="[4.1,6)",*</Import-Package>
                     </instructions>
                 </configuration>
             </plugin>
