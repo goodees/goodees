@@ -17,7 +17,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-access</artifactId>
-            <scope>provided</scope>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>fish.payara.extras</groupId>
@@ -35,7 +35,13 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-                        <Import-Package>org.apache.catalina;version="[4.1,6)",*</Import-Package>
+                        <Import-Package>
+                            <!-- logback-access' imports that we don't use -->
+                            org.eclipse.jetty.*;resolution:=optional,
+                            org.codehaus.*;resolution:=optional,
+                            org.apache.coyote;resolution:=optional,
+                            org.apache.catalina;version="[4.1,6)",*</Import-Package>
+                        <Embed-Dependency>*;scope=compile</Embed-Dependency>
                     </instructions>
                 </configuration>
             </plugin>
