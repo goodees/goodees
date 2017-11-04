@@ -1,16 +1,14 @@
 = Logback for Payara server
 
-These packages serve for providing slf4j APIs and logback as an implementation for Payara. 
+These packages serve for providing slf4j APIs and logback for Payara as a common components. 
 It will also replace server's logs past initial startup.
 Additionally it allows for access logging with logback-access.
-Also included is https://github.com/logstash/logstash-logback-encoder:"logstash-encoder", so that logs can be transferred directly to logstash without need for additional file watching components.
+Also included is https://github.com/logstash/logstash-logback-encoder[logstash-encoder], so that logs can be transferred directly to logstash without need for additional file watching and parsing.
 
 == Installation
 
-All three artifacts are needed.
-
 `payara-logback-libs` contains slf4j api, logback, logstash-encoder, and all their dependencies (shaded).
-It gets installed on the ext classloader - the top of the classloader hierarchy.
+It gets installed on the ext classloader -- the top of the classloader hierarchy.
 
 ----
 asadmin add-library --type ext payara-logback-libs-1.0.jar
@@ -33,10 +31,11 @@ asadmin deploy --type osgi payara-logback-access-1.0.jar
 Nothing happens yet, right?
 
 First, have your logback configuration file.
-Place it in your config directory as `logback.xml`.
+Place it in your domain's config directory as `logback.xml`.
 
 A simple file to get you started would be:
 
+[source,xml]
 ----
 <configuration debug="true" scan="true">
     <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
@@ -65,9 +64,9 @@ A simple file to get you started would be:
 </configuration>
 ----
 
-Consult https://logback.qos.ch/manual/configuration.html:"Logback manual" for reference of configuration.
+Consult https://logback.qos.ch/manual/configuration.html[Logback manual] for reference of configuration.
 
-Next tell the location of your configuration file to logback via system property, and redirect java.util.logging to slf4j.
+Next, tell the location of your configuration file to logback via system property and redirect java.util.logging to slf4j.
 Finally, restart the instance(s), and you're done.
 
 ----
@@ -79,9 +78,9 @@ asadmin restart-domain
 == Enabling access logging with logback-access
 
 The steps for access logging are similar.
+We create a configuration file, like this one taken from https://logback.qos.ch/access.html[Logback access documentation]:
 
-First, create a configuration file, taken from https://logback.qos.ch/access.html:"Logback access documentation":
-
+[source,xml]
 ----
 <configuration>
   <!-- always a good activate OnConsoleStatusListener -->
@@ -104,7 +103,7 @@ First, create a configuration file, taken from https://logback.qos.ch/access.htm
 
 Let's place the configuration file in the config directory under the name of `logback-access.xml`.
 
-Next we'll install the access logging using a https://docs.oracle.com/cd/E26576_01/doc.312/e24930/webapps.htm#GSDVG00414:"valve",
+Next we'll install the access logging using a https://docs.oracle.com/cd/E26576_01/doc.312/e24930/webapps.htm#GSDVG00414[valve],
 that we will activate for a default virtual server.
 
 ----
@@ -113,6 +112,4 @@ asadmin set server-config.http-service.virtual-server.server.property.valve_1="i
 asadmin restart-domain
 ----
 
-
-
-
+And now you're all set.
