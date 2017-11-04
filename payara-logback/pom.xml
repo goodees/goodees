@@ -46,10 +46,22 @@
                 <version>${version.logstashencoder}</version>
                 <scope>compile</scope>
             </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-access</artifactId>
+                <version>${version.logback}</version>
+            </dependency>
+            <dependency>
+                <groupId>fish.payara.extras</groupId>
+                <artifactId>payara-embedded-all</artifactId>
+                <scope>provided</scope>
+                <version>4.1.2.173.0.1</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <modules>
         <module>payara-logback-libs</module>
         <module>payara-logback-delegation</module>
+        <module>payara-logback-access</module>
     </modules>
 </project>
