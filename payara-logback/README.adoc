@@ -1,0 +1,118 @@
+= Logback for Payara server
+
+These packages serve for providing slf4j APIs and logback as an implementation for Payara. 
+It will also replace server's logs past initial startup.
+Additionally it allows for access logging with logback-access.
+Also included is https://github.com/logstash/logstash-logback-encoder:"logstash-encoder", so that logs can be transferred directly to logstash without need for additional file watching components.
+
+== Installation
+
+All three artifacts are needed.
+
+`payara-logback-libs` contains slf4j api, logback, logstash-encoder, and all their dependencies (shaded).
+It gets installed on the ext classloader - the top of the classloader hierarchy.
+
+----
+asadmin add-library --type ext payara-logback-libs-1.0.jar
+----
+
+`payara-logback-delegation` makes the contents of `payara-logback-libs` available to OSGi classloader
+
+----
+asadmin deploy --type osgi payara-logback-delegation-1.0.jar
+----
+
+And finally, `payara-logback-access` integrates logback-access with payara web container.
+
+----
+asadmin deploy --type osgi payara-logback-access-1.0.jar
+----
+
+== Configuring logging with logback
+
+Nothing happens yet, right?
+
+First, have your logback configuration file.
+Place it in your config directory as `logback.xml`.
+
+A simple file to get you started would be:
+
+----
+<configuration debug="true" scan="true">
+    <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
+        <resetJUL>true</resetJUL>
+    </contextListener>
+    <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" />  
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">    
+        <file>${com.sun.aas.instanceRoot}/logs/payara.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>${com.sun.aas.instanceRoot}/logs/payara.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy
+                class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>50MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+        </rollingPolicy>
+     
+        <encoder>
+            <pattern>[%d{ISO8601}] [%t] [%4p] [%logger]: %m%n</pattern>
+        </encoder>
+    </appender>
+    <root>
+        <level value="INFO" />
+        <appender-ref ref="FILE" />
+    </root>
+</configuration>
+----
+
+Consult https://logback.qos.ch/manual/configuration.html:"Logback manual" for reference of configuration.
+
+Next tell the location of your configuration file to logback via system property, and redirect java.util.logging to slf4j.
+Finally, restart the instance(s), and you're done.
+
+----
+asadmin create-jvm-options "-Dlogback.configurationFile=${com.sun.aas.instanceRoot}/config/logback.xml"
+asadmin set-log-attributes "handlers=org.slf4j.bridge.SLF4JBridgeHandler"
+asadmin restart-domain
+----
+
+== Enabling access logging with logback-access
+
+The steps for access logging are similar.
+
+First, create a configuration file, taken from https://logback.qos.ch/access.html:"Logback access documentation":
+
+----
+<configuration>
+  <!-- always a good activate OnConsoleStatusListener -->
+  <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" />  
+
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${com.sun.aas.instanceRoot}/logs/access.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <fileNamePattern>${com.sun.aas.instanceRoot}/logs/access.%d{yyyy-MM-dd}.log.zip</fileNamePattern>
+    </rollingPolicy>
+
+    <encoder>
+      <pattern>combined</pattern>
+    </encoder>
+  </appender>
+ 
+  <appender-ref ref="FILE" />
+</configuration>
+----
+
+Let's place the configuration file in the config directory under the name of `logback-access.xml`.
+
+Next we'll install the access logging using a https://docs.oracle.com/cd/E26576_01/doc.312/e24930/webapps.htm#GSDVG00414:"valve",
+that we will activate for a default virtual server.
+
+----
+asadmin create-jvm-options "-DlogbackAccess.configurationFile=${com.sun.aas.instanceRoot}/config/logback-access.xml"
+asadmin set server-config.http-service.virtual-server.server.property.valve_1="io.github.goodees.payara.logback.access.Logger"
+asadmin restart-domain
+----
+
+
+
+
