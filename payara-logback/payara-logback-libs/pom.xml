@@ -21,8 +21,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jul-to-slf4j</artifactId>
-        </dependency>
-        <dependency>
+        </dependency>        <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
         </dependency>
@@ -63,7 +62,7 @@
                             <relocations>
                                 <relocation>
                                     <pattern>com.fasterxml</pattern>
-                                    <shadedPattern>io.github.goodees.payara.logback</shadedPattern>
+                                    <shadedPattern>io.github.goodees.payara.logback.shadedlibs</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>

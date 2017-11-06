@@ -63,5 +63,6 @@
         <module>payara-logback-libs</module>
         <module>payara-logback-delegation</module>
         <module>payara-logback-access</module>
+        <module>payara-logback-dist</module>
     </modules>
 </project>
