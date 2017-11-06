@@ -8,6 +8,12 @@
     </parent>
     <artifactId>payara-logback-libs</artifactId>
     <packaging>jar</packaging>
+    <licenses>
+        <license>
+            <name>Aggregate of multiple licenses</name>
+            <comments>See THIRD-PARTY.txt for licenses of individual components</comments>
+        </license>
+    </licenses>
     
     <dependencies>
         <dependency>
@@ -21,7 +27,8 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jul-to-slf4j</artifactId>
-        </dependency>        <dependency>
+        </dependency>
+        <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
         </dependency>
@@ -32,6 +39,20 @@
     </dependencies>
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>1.14</version>
+                <executions>
+                    <execution>
+                        <id>licenses</id>
+                        <goals>
+                            <goal>add-third-party</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                    </execution>
+                </executions> 
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
