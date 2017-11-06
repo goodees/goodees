@@ -38,6 +38,7 @@ A simple file to get you started would be:
 [source,xml]
 ----
 <configuration debug="true" scan="true">
+    <!-- Since we strongly integrate with Payara's java.util.logging, we need to include this -->
     <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
         <resetJUL>true</resetJUL>
     </contextListener>
