@@ -5,7 +5,18 @@ It will also replace server's logs past initial startup.
 Additionally it allows for access logging with logback-access.
 Also included is https://github.com/logstash/logstash-logback-encoder[logstash-encoder], so that logs can be transferred directly to logstash without need for additional file watching and parsing.
 
-== Installation
+== (Semi-)Automatic installation
+
+# Have your server running
+# Download latest version of http://repo2.maven.org/maven2/io/github/goodees/payara-logback-dist/[`io.github.goodees:payara-logback-dist`].
+  Current version is http://repo2.maven.org/maven2/io/github/goodees/payara-logback-dist/1.0.0/payara-logback-dist-1.0.0.zip[1.0.0]
+# Unzip
+# Have asadmin on your executable path in your shell
+# Run `install.cmd` or `install.sh`
+
+To understand what actually happens, read on.
+
+== Manual Installation
 
 `payara-logback-libs` contains slf4j api, logback, logstash-encoder, and all their dependencies (shaded).
 It gets installed on the ext classloader -- the top of the classloader hierarchy.
