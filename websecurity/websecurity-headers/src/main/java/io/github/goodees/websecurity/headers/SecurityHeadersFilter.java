@@ -9,11 +9,16 @@ import io.github.goodees.websecurity.common.filter.HttpFilter;
 import io.github.goodees.websecurity.headers.SecurityHeadersConfig.XFrameOption;
 import java.io.IOException;
 import javax.annotation.PostConstruct;
+import javax.enterprise.context.Dependent;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.FilterRegistration;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebFilter;
+import javax.servlet.annotation.WebInitParam;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -27,8 +32,11 @@ import org.slf4j.LoggerFactory;
  * 
  */
 @WebFilter(urlPatterns = "/*", filterName=SecurityHeadersFilter.FILTER_NAME)
+@Dependent
 public class SecurityHeadersFilter extends HttpFilter {
     public static final String FILTER_NAME = "DefaultSecurityHeadersFilter";
+    public static final String DISABLED = "disabled";
+    
     private static final Logger logger = LoggerFactory.getLogger(SecurityHeadersFilter.class);
 
     @Inject
@@ -52,6 +60,15 @@ public class SecurityHeadersFilter extends HttpFilter {
     private static final String XSS_PROTECTION_HEADER_NAME = "X-XSS-Protection";
     private static final String XSS_PROTECTION_HEADER_VALUE = "1; mode=block";
 
+    private boolean disabled = false;
+    
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+        String disabledParam = filterConfig.getInitParameter(DISABLED);
+        disabled = Boolean.valueOf(disabledParam);
+    }
+
+    
     @PostConstruct
     void init() {
         if (!appConfig.isAmbiguous() && !appConfig.isUnsatisfied()) {
@@ -82,7 +99,10 @@ public class SecurityHeadersFilter extends HttpFilter {
     @Override
     public boolean doFilter(HttpServletRequest request, HttpServletResponse httpResponse,
             FilterChain chain) throws IOException, ServletException {
-
+        if (disabled) {
+            // skip the execution if disabled
+            return true;
+        }
         if (httpResponse.isCommitted()) {
             throw new ServletException("Response already committed");
         }
@@ -108,5 +128,18 @@ public class SecurityHeadersFilter extends HttpFilter {
             httpResponse.setHeader(XSS_PROTECTION_HEADER_NAME, XSS_PROTECTION_HEADER_VALUE);
         }
         return true; // invoke chain
+    }
+    
+    public static void disableDefaultFilter(ServletContext ctx) {
+        FilterRegistration reg = ctx.getFilterRegistration(FILTER_NAME);
+        if (reg == null) {
+            logger.warn("{} was not found in the web app", FILTER_NAME);
+        } else {
+            if (!reg.setInitParameter(DISABLED, "true")) {
+                logger.warn("Disabling of {} failed", FILTER_NAME);
+            } else {
+                logger.warn("Disabled filter {}", FILTER_NAME);
+            }
+        }
     }
 }
