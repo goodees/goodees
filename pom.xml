@@ -38,6 +38,7 @@
     
     <modules>
         <module>payara-logback</module>
+        <module>websecurity</module>
     </modules>
     <dependencyManagement>
         <dependencies>
