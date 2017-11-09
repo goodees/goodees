@@ -19,7 +19,6 @@ import org.junit.runner.RunWith;
 
 /**
  *
- * @author patrik
  */
 @RunWith(Arquillian.class)
 public class SecurityHeadersIT {

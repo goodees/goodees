@@ -1,0 +1,56 @@
+= Event Sourced Entities
+
+This library aims to help building programming model, where the business logic is executed by stateful entities, and
+whose state is managed by persisting events and replaying them.
+
+The library was created to offer fairly simple API to build a application in this way, which for Java EE only needs Concurrency extensions and JDBC.
+The core of the library depends just on Java SE (Concurrency and JDBC), and depends on Immutables and Jackson for JSON serialization of Events.
+
+== Glossary
+
+There is a really broad spectrum of approaches how to do event sourced objects, so the library makes some decisions about particular processing model.
+Also the terminology varies between different applications. Therefore some glossary at first:
+
+Entity::
+  the stateful object that makes business decision, produces events, and maintains its state by applying stream of events.
+  Also known under terms like Aggregate or PersistenceActor
+
+Request::
+  the trigger of the logic that may change state of the entity.
+  Also known as Command or Message.
+
+Response::
+  The value returned to client as a reaction to request.
+  In its current state, the library does not do CQRS (but could be extended to allow it).
+  The decision is, to return a value (or actually CompletableFuture of value) to a client, as a programming model, where
+  client gets result is a bit easier to accomodate to.
+  Not many libraries do this, so there are no common synonyms for the term.
+
+Event::
+  A fact about a (past) change in the system. Our events always bind to specific entity, and form a monotonic stream
+  per entity.
+
+== Processing model
+
+* An entity has a identifier, which is a String.
+* An entity processes at most one request a time, globally.
+* During request processing, entity might speak to other systems (entities, services) to decide the response
+* Once the decision is made, one or more events are created and persisted. This is the only transacational operation, where it
+  is guaranteed, that the decision was made of the most recent state of the entity.
+* If entity does any side effects as additional side effect to changing state, it needs to be able to compensate for the
+  failure of the side effect itself. Usual compensation would be to persist a compensation event.
+
+== Runtime
+
+In order to direct a request to correct entity, there is a singleton implementing EntityRuntime for every entity class
+The runtime binds together the entity, and all its dependencies, like the Event store or external services the entity should speak to. 
+It also guarantees that an entity instance processes at most one request at time:
+the current implementation builds a request queue for each entity instance, and schedules the invocation on the provided ExecutorService.
+Implementation also allows for adding timeouts to, as well as scheduling requests to an entity.
+
+More about implementation and lifecycles is documented in the javadoc of respective classes.
+
+== Pragmatic decisions
+
+Since events should be immutable and persistable, Immutables and Jackson were chosen.
+Applications are free to implement any way, the library just provides reasonable default for this combination.

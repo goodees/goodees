@@ -4,7 +4,6 @@ import java.net.URI;
 
 /**
  * Configuration for standard security headers
- * @author patrik
  */
 public interface SecurityHeadersConfig {
 

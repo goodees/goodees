@@ -12,7 +12,6 @@ import javax.servlet.http.HttpServletResponse;
 
 /**
  *
- * @author patrik
  */
 public abstract class HttpFilter implements Filter {
 

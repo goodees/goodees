@@ -6,7 +6,6 @@ import javax.servlet.annotation.WebListener;
 
 /**
  *
- * @author patrik
  */
 @WebListener()
 public class DisablingListener implements ServletContextListener {

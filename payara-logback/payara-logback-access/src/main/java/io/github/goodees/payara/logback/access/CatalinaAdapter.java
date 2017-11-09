@@ -9,7 +9,6 @@ import org.apache.catalina.connector.ResponseFacade;
 
 /**
  * Bridge between Payara's Catalina and Logback Access.
- * @author Patrik Dudits
  */
 class CatalinaAdapter implements ServerAdapter {
     static final String REQUEST_TIME = "AccessLog.requestStartTime";

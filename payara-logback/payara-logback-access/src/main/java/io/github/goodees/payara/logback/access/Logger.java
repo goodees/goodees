@@ -13,7 +13,6 @@ import org.glassfish.web.valve.GlassFishValve;
 /**
  * Due to the way VirtualServer.addValve is implemented we cannot implement
  * Tomcat interface if we want lifecycle support.
- * @author Patrik Dudits
  */
 public class Logger implements GlassFishValve, Lifecycle {
     private final CatalinaValve delegate;
