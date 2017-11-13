@@ -10,8 +10,12 @@
       <version.jackson>2.9.2</version.jackson>
   </properties>
 
-  <artifactId>ese</artifactId>
+  <artifactId>ese-parent</artifactId>
   <version>1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <modules>
+      <module>ese</module>
+  </modules>
   <dependencies>
     <dependency>
       <groupId>com.h2database</groupId>
