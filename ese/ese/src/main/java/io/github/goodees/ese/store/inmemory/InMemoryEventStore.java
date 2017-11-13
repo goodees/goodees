@@ -36,9 +36,7 @@ import java.util.function.Consumer;
 
 import static java.util.stream.Collectors.toList;
 
-/**
- * Created by UI187816 on 18/04/2017.
- */
+
 public class InMemoryEventStore implements EventStore, EventLog {
     private ConcurrentMap<String, List<Event>> storage = new ConcurrentHashMap<>();
 

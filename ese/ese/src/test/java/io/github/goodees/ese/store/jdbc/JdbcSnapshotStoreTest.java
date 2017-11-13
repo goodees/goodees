@@ -26,9 +26,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Created by UI187816 on 02/05/2017.
- */
+
 public class JdbcSnapshotStoreTest extends JdbcTest {
 
     @Test

@@ -23,9 +23,7 @@ package io.github.goodees.ese;
 import io.github.goodees.ese.store.EventStore;
 import io.github.goodees.ese.store.SnapshotStore;
 
-/**
- * Created by UI187816 on 19/06/2017.
- */
+
 public class MockEntities {
     public static EventSourcedEntity entityWithSnapshot(EventStore eventStore, String entityId, int stateVersion,
             Object snapshot) {

@@ -22,9 +22,7 @@ package io.github.goodees.ese.store.jdbc;
 
 import io.github.goodees.ese.store.Serialization;
 
-/**
- * Created by UI187816 on 04/05/2017.
- */
+
 public class TestSnapshotSerialization implements Serialization<JdbcTestSnapshot> {
 
     private boolean storeHex;

@@ -24,9 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiConsumer;
 
-/**
- * Created by UI187816 on 20/04/2017.
- */
+
 public abstract class SyncEventSourcingRuntime<E extends SyncEntity> extends DispatchingEventSourcingRuntime<E> {
 
     protected abstract ExecutorService getExecutorService();

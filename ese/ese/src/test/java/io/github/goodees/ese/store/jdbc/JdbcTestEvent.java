@@ -24,9 +24,7 @@ import io.github.goodees.ese.Event;
 
 import java.time.Instant;
 
-/**
- * Created by UI187816 on 03/05/2017.
- */
+
 public class JdbcTestEvent implements Event {
     private final String entityId;
     private final int version;

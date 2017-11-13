@@ -24,9 +24,7 @@ import io.github.goodees.ese.store.Serialization;
 
 import java.time.Instant;
 
-/**
- * Created by UI187816 on 03/05/2017.
- */
+
 public class TestEventSerialization implements Serialization<JdbcTestEvent> {
     private boolean storeHex = false;
 

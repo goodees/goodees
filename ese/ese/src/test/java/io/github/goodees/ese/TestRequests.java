@@ -25,9 +25,7 @@ import java.util.concurrent.Callable;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.*;
 
-/**
- * Created by UI187816 on 21/04/2017.
- */
+
 public class TestRequests {
 
     public static class GetProbe implements Request<StatusProbe> {

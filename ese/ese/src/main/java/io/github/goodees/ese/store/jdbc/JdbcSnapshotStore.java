@@ -34,9 +34,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Objects;
 
-/**
- * Created by UI187816 on 02/05/2017.
- */
+
 public class JdbcSnapshotStore<S> extends io.github.goodees.ese.store.SnapshotStoreWithSerialization<S> {
     private final DataSource ds;
     private final JdbcSchema schema;

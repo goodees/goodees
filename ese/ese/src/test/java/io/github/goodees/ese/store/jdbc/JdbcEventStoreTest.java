@@ -35,9 +35,7 @@ import java.util.concurrent.CountDownLatch;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-/**
- * Created by UI187816 on 02/05/2017.
- */
+
 public class JdbcEventStoreTest extends JdbcTest {
     private static final Logger logger = LoggerFactory.getLogger(JdbcEventStoreTest.class);
     @Rule

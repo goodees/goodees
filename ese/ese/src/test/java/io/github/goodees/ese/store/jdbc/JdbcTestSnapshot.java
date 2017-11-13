@@ -20,9 +20,7 @@ package io.github.goodees.ese.store.jdbc;
  * #L%
  */
 
-/**
- * Created by UI187816 on 04/05/2017.
- */
+
 public class JdbcTestSnapshot {
     public JdbcTestSnapshot(int payload) {
         this.payload = payload;

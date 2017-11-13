@@ -49,9 +49,7 @@ import static io.github.goodees.ese.AsyncEventSourcingRuntime.RETRY_NOW;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.*;
 
-/**
- * Created by UI187816 on 18/04/2017.
- */
+
 public class DispatcherTest {
     private static final Logger logger = LoggerFactory.getLogger(DispatcherTest.class);
     static final EventStore store = new MockEventStore();

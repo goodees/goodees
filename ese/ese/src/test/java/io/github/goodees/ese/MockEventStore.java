@@ -25,9 +25,7 @@ import io.github.goodees.ese.store.EventStoreException;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Created by UI187816 on 18/04/2017.
- */
+
 public class MockEventStore extends InMemoryEventStore {
     private AtomicReference<EventStoreException> exception = new AtomicReference<>();
 

@@ -28,9 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-/**
- * Created by UI187816 on 02/05/2017.
- */
+
 public abstract class JdbcSchema {
 
     protected abstract PreparedStatement selectEntityVersion(Connection connection, String entityId)

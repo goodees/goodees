@@ -34,9 +34,7 @@ import java.util.function.Consumer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Created by UI187816 on 24/04/2017.
- */
+
 public class SyncRuntimeTest extends GeneralRuntimeTest {
 
     static Map<String, SyncTestEntity> disposed = new HashMap<>();

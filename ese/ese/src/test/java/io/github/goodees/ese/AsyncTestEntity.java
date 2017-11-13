@@ -27,9 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-/**
- * Created by UI187816 on 24/04/2017.
- */
+
 public class AsyncTestEntity extends AsyncEntity implements TestEntity {
 
     private final boolean acceptSnapshot;

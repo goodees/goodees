@@ -24,9 +24,7 @@ import io.github.goodees.ese.store.EventStore;
 
 import java.util.List;
 
-/**
- * Created by UI187816 on 24/04/2017.
- */
+
 public class SyncTestEntity extends SyncEntity implements TestEntity {
 
     private final boolean acceptSnapshot;

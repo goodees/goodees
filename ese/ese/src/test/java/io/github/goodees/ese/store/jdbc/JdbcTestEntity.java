@@ -24,9 +24,7 @@ import io.github.goodees.ese.Event;
 import io.github.goodees.ese.EventSourcedEntity;
 import io.github.goodees.ese.store.EventStore;
 
-/**
- * Created by UI187816 on 04/05/2017.
- */
+
 public class JdbcTestEntity extends EventSourcedEntity {
     private int payload;
 

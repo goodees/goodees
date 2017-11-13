@@ -32,9 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.*;
 
-/**
- * Created by UI187816 on 21/04/2017.
- */
+
 public abstract class GeneralRuntimeTest<E extends EventSourcedEntity> {
     @Rule
     public TestName testName = new TestName();

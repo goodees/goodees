@@ -34,9 +34,7 @@ import java.sql.SQLException;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Created by UI187816 on 03/05/2017.
- */
+
 public class JdbcTest {
     protected static JdbcDataSource ds;
     protected static JdbcTemplate template;

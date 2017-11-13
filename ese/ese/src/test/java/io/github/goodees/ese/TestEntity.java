@@ -20,9 +20,7 @@ package io.github.goodees.ese;
  * #L%
  */
 
-/**
- * Created by UI187816 on 21/04/2017.
- */
+
 public interface TestEntity {
     boolean wasOfferedSnapshot();
 

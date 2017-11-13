@@ -26,9 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 
-/**
- * Created by UI187816 on 24/08/2017.
- */
+
 public abstract class SnapshotStoreWithSerialization<S> extends SnapshotStore<String> {
     protected static final Logger logger = LoggerFactory.getLogger(SnapshotStoreWithSerialization.class);
     protected final Serialization<S> serialization;
