@@ -7,12 +7,12 @@ Also included is https://github.com/logstash/logstash-logback-encoder[logstash-e
 
 == (Semi-)Automatic installation
 
-# Have your server running
-# Download latest version of http://repo2.maven.org/maven2/io/github/goodees/payara-logback-dist/[`io.github.goodees:payara-logback-dist`].
+1. Have your server running
+1. Download latest version of http://repo2.maven.org/maven2/io/github/goodees/payara-logback-dist/[`io.github.goodees:payara-logback-dist`].
   Current version is http://repo2.maven.org/maven2/io/github/goodees/payara-logback-dist/1.0.0/payara-logback-dist-1.0.0.zip[1.0.0]
-# Unzip
-# Have asadmin on your executable path in your shell
-# Run `install.cmd` or `install.sh`
+1. Unzip
+1. Have asadmin on your executable path in your shell
+1. Run `install.cmd` or `install.sh`
 
 To understand what actually happens, read on.
 
