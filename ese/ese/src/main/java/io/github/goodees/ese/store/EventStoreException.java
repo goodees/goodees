@@ -26,7 +26,7 @@ import io.github.goodees.ese.Event;
 /**
  * Exception generated when storing of event fails.
  */
-public class EventStoreException extends Exception {
+public class EventStoreException extends RuntimeException {
     private final Fault fault;
 
     public enum Fault {
@@ -73,6 +73,12 @@ public class EventStoreException extends Exception {
                 + " suppressed event store exception.", null);
     }
 
+    public static EventStoreException suppressed(String entityId, Throwable suppressed) {
+        EventStoreException e = new EventStoreException(Fault.PROGRAMMATIC_ERROR, "Entity " + entityId
+                + " suppressed event store exception.", null);
+        e.addSuppressed(suppressed);
+        return e;
+    }
     public static EventStoreException unsupported(Event event) {
         return new EventStoreException(Fault.PROGRAMMATIC_ERROR, "Unsupported event type: " + event, null);
     }
