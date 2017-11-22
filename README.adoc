@@ -1,0 +1,15 @@
+= Collection of Java EE (EE4J) utilities
+
+This project should collect small reusable libraries targetted to Java EE environments.
+Some of the components target http://payara.fish[Payara] specifically, some only depend on standard Java EE APIs.
+
+Currently following libraries are available:
+
+link:payara-logback/[payara-logback]::
+  Libraries, that enable to use https://logback.qos.ch/[logback] as only logging backend in Payara.
+  
+link:websecurity/[websecurity]::
+  Servlet and JAX-RS filters for various security aspects, like standard headers, CORS or rate limiting.
+  
+link:ese/[ESE]::
+   Library for implementing Event Sourced Entities in Java SE (and more).

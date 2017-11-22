@@ -1,0 +1,4 @@
+= Event Sourced Entities
+
+This is library that eases implementation of event sourcing.
+So far all the code is in the link:core/[core module], and will eventually grow to more submodules.
