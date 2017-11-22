@@ -1,4 +1,4 @@
-package io.github.goodees.ese;
+package io.github.goodees.ese.core;
 
 /*-
  * #%L
@@ -20,11 +20,11 @@ package io.github.goodees.ese;
  * #L%
  */
 
-import io.github.goodees.ese.dispatch.Dispatcher;
-import io.github.goodees.ese.store.EventLog;
-import io.github.goodees.ese.store.EventStore;
-import io.github.goodees.ese.store.EventStoreException;
-import io.github.goodees.ese.store.SnapshotStore;
+import io.github.goodees.ese.core.dispatch.Dispatcher;
+import io.github.goodees.ese.core.store.EventLog;
+import io.github.goodees.ese.core.store.EventStore;
+import io.github.goodees.ese.core.store.EventStoreException;
+import io.github.goodees.ese.core.store.SnapshotStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,4 +1,4 @@
-package io.github.goodees.ese;
+package io.github.goodees.ese.core;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
