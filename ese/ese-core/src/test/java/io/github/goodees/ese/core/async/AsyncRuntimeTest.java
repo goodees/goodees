@@ -1,4 +1,4 @@
-package io.github.goodees.ese.core;
+package io.github.goodees.ese.core.async;
 
 /*-
  * #%L
@@ -20,10 +20,7 @@ package io.github.goodees.ese.core;
  * #L%
  */
 
-import io.github.goodees.ese.core.SyncEventSourcingRuntime;
-import io.github.goodees.ese.core.EventSourcingRuntimeBase;
-import io.github.goodees.ese.core.EventSourcedEntity;
-import io.github.goodees.ese.core.Request;
+import io.github.goodees.ese.core.*;
 import io.github.goodees.ese.core.store.EventLog;
 import io.github.goodees.ese.core.store.EventStoreException;
 import io.github.goodees.ese.core.store.SnapshotStore;
@@ -32,17 +29,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 
-public class SyncRuntimeTest extends GeneralRuntimeTest {
+public class AsyncRuntimeTest extends GeneralRuntimeTest {
 
-    static Map<String, SyncTestEntity> disposed = new HashMap<>();
-    private static SyncEventSourcingRuntime<SyncTestEntity> runtime = new SyncEventSourcingRuntime<SyncTestEntity>() {
+    static Map<String, AsyncTestEntity> disposed = new HashMap<>();
+    static class AsyncTestRuntime extends AsyncEventSourcingRuntime<AsyncTestEntity> {
+        static SnapshotStore.EntityStateHandler TEST_RECOVERY_HANDLER = RECOVERY_STATE_HANDLER;
+
         @Override
         protected ExecutorService getExecutorService() {
             return testExecutorService;
@@ -55,16 +52,16 @@ public class SyncRuntimeTest extends GeneralRuntimeTest {
 
         @Override
         protected String getEntityName() {
-            return "SyncEntity";
+            return "AsyncTestEntity";
         }
 
         @Override
-        protected SyncTestEntity instantiate(String entityId) {
-            return new SyncTestEntity(eventStore, entityId, shouldEntityAcceptSnapshot(entityId));
+        protected AsyncTestEntity instantiate(String entityId) {
+            return new AsyncTestEntity(eventStore, entityId, shouldEntityAcceptSnapshot(entityId));
         }
 
         @Override
-        protected void dispose(SyncTestEntity entity) {
+        protected void dispose(AsyncTestEntity entity) {
             disposed.put(entity.getIdentity(), entity);
         }
 
@@ -79,20 +76,27 @@ public class SyncRuntimeTest extends GeneralRuntimeTest {
         }
 
         @Override
-        protected boolean isInLatestKnownState(SyncTestEntity entity) {
+        protected boolean isInLatestKnownState(AsyncTestEntity entity) {
             return eventStore.confirmsEntityReflectsCurrentState(entity);
         }
 
         @Override
-        protected long retryDelay(String entityId, Request<?> request, Throwable error, int attempts) {
+        protected long retryDelay(String id, Request<?> request, Throwable error, int attempts) {
             return RETRY_NEVER; // we only try once in test to inspect behaviour upon failure
         }
 
         @Override
-        protected boolean shouldStoreSnapshot(SyncTestEntity entity, int eventsSinceSnapshot) {
-            return SyncRuntimeTest.shouldStoreSnapshot(entity.getIdentity());
+        protected boolean shouldStoreSnapshot(AsyncTestEntity entity, int eventsSinceSnapshot) {
+            return AsyncRuntimeTest.shouldStoreSnapshot(entity.getIdentity());
         }
+
+        AsyncTestEntity lookup(String id) {
+            return invocationHandler.invokeSync(id, (e) -> e);
+        }
+
     };
+
+    AsyncTestRuntime runtime = new AsyncTestRuntime();
 
     @Override
     protected EventSourcingRuntimeBase runtime() {
@@ -101,15 +105,15 @@ public class SyncRuntimeTest extends GeneralRuntimeTest {
 
     @Override
     protected String prepareSnapshot(String testcase) {
-        EventSourcedEntity syncTestEntity = mockEntity(testcase, 10, new Object());
-        snapshotStore.store(syncTestEntity, EventSourcingRuntimeBase.RECOVERY_STATE_HANDLER);
+        EventSourcedEntity asyncTestEntity = mockEntity(testcase, 10, new Object());
+        snapshotStore.store(asyncTestEntity, AsyncTestRuntime.TEST_RECOVERY_HANDLER);
         return testcase;
     }
 
     @Override
     protected String prepareEvents(String testcase) throws EventStoreException {
-        SyncTestEntity inst = runtime.instantiate(testcase);
-        snapshotStore.recover(inst, eventStore, EventSourcingRuntimeBase.RECOVERY_STATE_HANDLER);
+        AsyncTestEntity inst = runtime.instantiate(testcase);
+        snapshotStore.recover(inst, eventStore, AsyncTestRuntime.TEST_RECOVERY_HANDLER);
         eventStore.persist(new TestRequests.DummyRecoveredEvent(inst));
         return testcase;
     }
@@ -117,7 +121,8 @@ public class SyncRuntimeTest extends GeneralRuntimeTest {
     @Override
     protected void assertEventHandlerInvoked(String instance, Throwable exception) {
         // if the entity was disposed as result of invocation, we should test the previous instance
-        SyncTestEntity inst = disposed.containsKey(instance) ? disposed.get(instance) : runtime.lookup(instance);
+        // or we should actually write a test that does not test exceptional invocation via event store failure
+        AsyncTestEntity inst = disposed.containsKey(instance) ? disposed.get(instance) : runtime.lookup(instance);
         assertTrue(inst.eventHandlerCalled);
         assertEquals(exception, inst.eventHandlerThrowable);
     }

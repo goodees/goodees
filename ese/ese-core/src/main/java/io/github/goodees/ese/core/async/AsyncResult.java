@@ -1,4 +1,4 @@
-package io.github.goodees.ese.core;
+package io.github.goodees.ese.core.async;
 
 /*-
  * #%L

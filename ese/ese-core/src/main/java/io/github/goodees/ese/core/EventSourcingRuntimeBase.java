@@ -20,15 +20,17 @@ package io.github.goodees.ese.core;
  * #L%
  */
 
+import io.github.goodees.ese.core.async.AsyncEventSourcingRuntime;
+import io.github.goodees.ese.core.dispatch.DispatchingEventSourcingRuntime;
 import io.github.goodees.ese.core.store.EventLog;
 import io.github.goodees.ese.core.store.EventStore;
 import io.github.goodees.ese.core.store.SnapshotStore;
+import io.github.goodees.ese.core.sync.SyncEventSourcingRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 /**
  * Common logic for facade to speaking with entities. It instantiates the entities, recovers their state, manages their snapshots
@@ -184,7 +186,7 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
      * <ol>
      *     <li>Obtain an up-to-date instance, as described by {@link #lookup(String)}</li>
      *     <li>Pass the request to the instance. Subclasses of runtime define the contract between runtime and entity</li>
-     *     <li>When call completes, {@link #handleCompletion(String, EventSourcedEntity, Throwable)} executes following logic:
+     *     <li>When call completes, {@link EntityInvocationHandler#handleCompletion(String, EventSourcedEntity, Throwable)} executes following logic:
      *      <ol>
      *          <li>Entities {@linkplain EventSourcedEntity#getInvocationState() invocation state} will reflect successful
      *              or unsuccessful completion</li>
@@ -232,10 +234,6 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
      */
     protected boolean isInLatestKnownState(E entity) {
         return getEventLog().confirmsEntityReflectsCurrentState(entity);
-    }
-
-    E lookup(String id) {
-        return invocationHandler.invokeSync(id, (e) -> e);
     }
 
 }

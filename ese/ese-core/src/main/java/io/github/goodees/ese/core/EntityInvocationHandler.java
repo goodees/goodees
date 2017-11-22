@@ -20,10 +20,13 @@ package io.github.goodees.ese.core;
  * #L%
  */
 
+import io.github.goodees.ese.core.async.AsyncEventSourcingRuntime;
+import io.github.goodees.ese.core.dispatch.DispatchingEventSourcingRuntime;
 import io.github.goodees.ese.core.store.EventLog;
 import io.github.goodees.ese.core.store.EventStore;
 import io.github.goodees.ese.core.store.EventStoreException;
 import io.github.goodees.ese.core.store.SnapshotStore;
+import io.github.goodees.ese.core.sync.SyncEventSourcingRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,7 +174,7 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
     };
 
     @FunctionalInterface
-    interface ThrowingInvocation<E, R, X extends Throwable> {
+    public interface ThrowingInvocation<E, R, X extends Throwable> {
         R invoke(E entity) throws X;
     }
 

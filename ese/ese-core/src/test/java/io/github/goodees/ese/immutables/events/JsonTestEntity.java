@@ -24,7 +24,7 @@ package io.github.goodees.ese.immutables.events;
 import io.github.goodees.ese.core.Event;
 import io.github.goodees.ese.core.store.EventStore;
 import io.github.goodees.ese.core.Request;
-import io.github.goodees.ese.core.SyncEntity;
+import io.github.goodees.ese.core.sync.SyncEntity;
 
 /**
  *

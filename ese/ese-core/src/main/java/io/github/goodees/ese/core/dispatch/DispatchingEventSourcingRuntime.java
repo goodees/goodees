@@ -1,4 +1,4 @@
-package io.github.goodees.ese.core;
+package io.github.goodees.ese.core.dispatch;
 
 /*-
  * #%L
@@ -20,8 +20,9 @@ package io.github.goodees.ese.core;
  * #L%
  */
 
-import io.github.goodees.ese.core.dispatch.Dispatcher;
-import io.github.goodees.ese.core.dispatch.DispatcherConfiguration;
+import io.github.goodees.ese.core.EventSourcedEntity;
+import io.github.goodees.ese.core.EventSourcingRuntimeBase;
+import io.github.goodees.ese.core.Request;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -71,7 +72,7 @@ public abstract class DispatchingEventSourcingRuntime<E extends EventSourcedEnti
      * be reported via second parameter of the callback
      */
     protected abstract <RS, R extends Request<RS>> void invokeEntity(E entity, R request,
-            BiConsumer<RS, Throwable> callback) throws Exception;
+                                                                     BiConsumer<RS, Throwable> callback) throws Exception;
 
     /**
      * Specify whether and when the request should be retried in case of failure.

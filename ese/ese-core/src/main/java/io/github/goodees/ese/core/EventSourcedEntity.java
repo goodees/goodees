@@ -20,13 +20,13 @@ package io.github.goodees.ese.core;
  * #L%
  */
 
+import io.github.goodees.ese.core.async.AsyncEntity;
 import io.github.goodees.ese.core.store.EventStore;
-import io.github.goodees.ese.core.store.EventStoreException;
+import io.github.goodees.ese.core.sync.SyncEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.stream.Stream;
 
 import static java.lang.Math.max;
 

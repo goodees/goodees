@@ -22,7 +22,7 @@ package io.github.goodees.ese.core.dispatch;
 
 import io.github.goodees.ese.core.Event;
 import io.github.goodees.ese.core.EventHeader;
-import io.github.goodees.ese.core.AsyncEntity;
+import io.github.goodees.ese.core.async.AsyncEntity;
 import io.github.goodees.ese.core.Request;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
@@ -48,8 +48,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import io.github.goodees.ese.core.MockEventStore;
 
-import static io.github.goodees.ese.core.AsyncEventSourcingRuntime.RETRY_NEVER;
-import static io.github.goodees.ese.core.AsyncEventSourcingRuntime.RETRY_NOW;
+import static io.github.goodees.ese.core.async.AsyncEventSourcingRuntime.RETRY_NEVER;
+import static io.github.goodees.ese.core.async.AsyncEventSourcingRuntime.RETRY_NOW;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.*;
 

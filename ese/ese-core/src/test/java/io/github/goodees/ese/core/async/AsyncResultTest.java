@@ -1,4 +1,4 @@
-package io.github.goodees.ese.core;
+package io.github.goodees.ese.core.async;
 
 /*-
  * #%L
@@ -20,7 +20,7 @@ package io.github.goodees.ese.core;
  * #L%
  */
 
-import io.github.goodees.ese.core.AsyncResult;
+import io.github.goodees.ese.core.async.AsyncResult;
 import org.junit.Test;
 
 import java.util.concurrent.ExecutionException;

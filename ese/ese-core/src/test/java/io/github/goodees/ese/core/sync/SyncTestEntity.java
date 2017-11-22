@@ -1,4 +1,4 @@
-package io.github.goodees.ese.core;
+package io.github.goodees.ese.core.sync;
 
 /*-
  * #%L
@@ -21,8 +21,10 @@ package io.github.goodees.ese.core;
  */
 
 import io.github.goodees.ese.core.Event;
-import io.github.goodees.ese.core.SyncEntity;
 import io.github.goodees.ese.core.Request;
+import io.github.goodees.ese.core.TestEntity;
+import io.github.goodees.ese.core.TestRequests;
+import io.github.goodees.ese.core.sync.SyncEntity;
 import io.github.goodees.ese.core.store.EventStore;
 
 import java.util.List;

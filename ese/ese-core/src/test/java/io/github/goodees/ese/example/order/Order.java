@@ -22,7 +22,7 @@ package io.github.goodees.ese.example.order;
 
 import io.github.goodees.ese.core.Event;
 import io.github.goodees.ese.core.Request;
-import io.github.goodees.ese.core.SyncEntity;
+import io.github.goodees.ese.core.sync.SyncEntity;
 import io.github.goodees.ese.example.order.event.*;
 import io.github.goodees.ese.example.order.request.*;
 import io.github.goodees.ese.core.matching.SyncRequestHandler;

@@ -1,4 +1,4 @@
-package io.github.goodees.ese.core;
+package io.github.goodees.ese.core.sync;
 
 /*-
  * #%L
@@ -19,6 +19,10 @@ package io.github.goodees.ese.core;
  * limitations under the License.
  * #L%
  */
+
+import io.github.goodees.ese.core.dispatch.DispatchingEventSourcingRuntime;
+import io.github.goodees.ese.core.Request;
+import io.github.goodees.ese.core.store.SnapshotStore;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;

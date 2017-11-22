@@ -1,4 +1,4 @@
-package io.github.goodees.ese.core;
+package io.github.goodees.ese.core.async;
 
 /*-
  * #%L
@@ -21,14 +21,14 @@ package io.github.goodees.ese.core;
  */
 
 import io.github.goodees.ese.core.Event;
-import io.github.goodees.ese.core.AsyncEntity;
 import io.github.goodees.ese.core.Request;
+import io.github.goodees.ese.core.TestEntity;
+import io.github.goodees.ese.core.TestRequests;
+import io.github.goodees.ese.core.async.AsyncEntity;
 import io.github.goodees.ese.core.store.EventStore;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
 
 public class AsyncTestEntity extends AsyncEntity implements TestEntity {

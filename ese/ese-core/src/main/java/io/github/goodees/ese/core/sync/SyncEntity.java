@@ -1,4 +1,4 @@
-package io.github.goodees.ese.core;
+package io.github.goodees.ese.core.sync;
 
 /*-
  * #%L
@@ -20,13 +20,16 @@ package io.github.goodees.ese.core;
  * #L%
  */
 
+import io.github.goodees.ese.core.async.AsyncEntity;
+import io.github.goodees.ese.core.Event;
+import io.github.goodees.ese.core.EventSourcedEntity;
+import io.github.goodees.ese.core.Request;
 import io.github.goodees.ese.core.store.EventStore;
 import io.github.goodees.ese.core.store.EventStoreException;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Stream;
 
 /**
  * Event sourced entity that executes the request in synchronous manner.
