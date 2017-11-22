@@ -22,11 +22,7 @@ package io.github.goodees.ese.core;
 
 import io.github.goodees.ese.core.dispatch.Dispatcher;
 import io.github.goodees.ese.core.dispatch.DispatcherConfiguration;
-import io.github.goodees.ese.core.store.EventStoreException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -229,7 +225,7 @@ public abstract class DispatchingEventSourcingRuntime<E extends EventSourcedEnti
 
         @Override
         public <R extends Request<RS>, RS> void execute(String entityId, R request, BiConsumer<RS, Throwable> callback) {
-            invocationHandler.<RS>invokeAsyncWithCallback(entityId, (entity, handleCompletion) -> {
+            invocationHandler.<RS>invokeWithCallback(entityId, (entity, handleCompletion) -> {
                 try {
                     invokeEntity(entity, request, (rs, t) -> {
                         try {

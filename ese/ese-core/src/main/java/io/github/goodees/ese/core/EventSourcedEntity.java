@@ -21,6 +21,7 @@ package io.github.goodees.ese.core;
  */
 
 import io.github.goodees.ese.core.store.EventStore;
+import io.github.goodees.ese.core.store.EventStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +50,6 @@ import static java.lang.Math.max;
 public abstract class EventSourcedEntity {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final String identity;
-    protected final EventStore store;
     private long stateVersion;
     private int eventsSinceSnapshot;
     private long nextEventVersion;
@@ -59,12 +59,10 @@ public abstract class EventSourcedEntity {
      * Constructor for subclasses. Both parameters are essential for the entity, as it needs to know what is it called,
      * and where to store its events
      * @param identity the identity of the entity
-     * @param store event store for storing its events.
      */
-    protected EventSourcedEntity(String identity, EventStore store) {
+    protected EventSourcedEntity(String identity) {
         Objects.requireNonNull(identity);
         this.identity = identity;
-        this.store = store;
     }
 
     /**
@@ -102,18 +100,48 @@ public abstract class EventSourcedEntity {
     }
 
     /**
-     * Convenience method for multiple calls to {@link #applyEvent(Event)}.
-     * @param events events to process
+     * Update state after events are persisted. Entity implementations should call this method to have
+     * their state updated via {@link #updateState(Event)} after events were persisted, as well as internal
+     * bookeeping of the entity to be updated. When storing events fail, this method should also be called to
+     * invalidate the entity.
+     * @param event event that was stored
+     * @param eventStoreError error that happened during persistence of event
      */
-    protected final void applyEvents(Stream<? extends Event> events) {
-        events.forEach(this::applyEvent);
+    protected final void handlePersistence(Event event, Throwable eventStoreError) {
+        if (eventStoreError == null) {
+            applyEvent(event);
+            getInvocationState().eventPersisted(event);
+        } else {
+            handlePersistenceFailure(eventStoreError);
+        }
+    }
+
+    /**
+     * Update state after events are persisted. Entity implementations should call this method to have
+     * their state updated via {@link #updateState(Event)} after events were persisted, as well as internal
+     * bookeeping of the entity to be updated. When storing events fail, this method should also be called to
+     * invalidate the entity.
+     * @param events events that were stored
+     * @param eventStoreError error that happened during persistence of event
+     */
+    protected final void handlePersistence(Collection<? extends Event> events, Throwable eventStoreError) {
+        if (eventStoreError == null) {
+            events.forEach(this::applyEvent);
+            getInvocationState().eventsPersisted(events);
+        } else {
+            handlePersistenceFailure(eventStoreError);
+        }
+    }
+
+    protected final void handlePersistenceFailure(Throwable eventStoreError) {
+        getInvocationState().eventStoreFailed(eventStoreError);
     }
 
     /**
      * Called during state recovery for any event read from the event log.
      * @param event past event from the event log
      */
-    protected final void applyEvent(Event event) {
+    void applyEvent(Event event) {
         updateState(event);
         // events should generally come in order, but just to be sure that we must arrive at greater version
         // or this could be a fatal error to receive an event with lower version. Or such event could be ignored.

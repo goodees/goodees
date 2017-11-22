@@ -20,7 +20,6 @@ package io.github.goodees.ese.core;
  * #L%
  */
 
-import io.github.goodees.ese.core.dispatch.Dispatcher;
 import io.github.goodees.ese.core.store.EventLog;
 import io.github.goodees.ese.core.store.EventStore;
 import io.github.goodees.ese.core.store.EventStoreException;
@@ -32,9 +31,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.function.*;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
  * Common logic for facade to speaking with entities. It instantiates the entities, recovers their state, manages their snapshots
@@ -54,7 +52,7 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
     private final Configuration<E> conf;
 
     public interface WorkingMemory<E extends EventSourcedEntity> {
-        E lookup(String id, Function<String,E> instantiator);
+        E lookup(String id, Function<String, E> instantiator);
 
         void remove(String id);
     }
@@ -68,8 +66,6 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
          * @see #lookup(String)
          */
         EventLog getEventLog();
-
-        EventStore getEventStore();
 
         /**
          * The SnapshotStore of this runtime. Snapshot store will be called to store a snapshot of an entity whenever
@@ -94,13 +90,13 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
     public interface Lifecycle<E extends EventSourcedEntity> {
         /**
          * Create a new uninitialized instance for given id and EventStore. Serves for creating the entity with reference to the
-         * EventStore, correct identity (as required by {@link EventSourcedEntity#EventSourcedEntity(String, EventStore)}
+         * EventStore, correct identity (as required by {@link EventSourcedEntity#EventSourcedEntity(String)}
          * and any other dependencies the entity might need to execute request, e. g. references to stateless ejbs, singletons,
          * or this runtime. Runtime will restore the state from snapshot and journal afterwards.
          *
          * @return instantiated entity
          */
-        E instantiate(String id, EventStore eventStore);
+        E instantiate(String id);
 
         /**
          * Perform clean up before removing an entity instance. This instance will no longer be used by the runtime, and
@@ -214,7 +210,7 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
      * @param entityId the identity of the entity to be called
      * @param action   the action to perform on the entity
      * @param <R>      Type of request
-     * @param <X>     Checked exception of the action
+     * @param <X>      Checked exception of the action
      * @return CompletableFuture of the result.
      * @see #lookup(String)
      */
@@ -236,9 +232,9 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
 
     private void rethrow(Throwable t) {
         if (t instanceof RuntimeException) {
-            throw (RuntimeException)t;
-        } else if (t instanceof Error){
-            throw (Error)t;
+            throw (RuntimeException) t;
+        } else if (t instanceof Error) {
+            throw (Error) t;
         } else {
             // wrap if it is not a runtime exception
             throw new RuntimeException(t);
@@ -270,7 +266,7 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
                 });
     }
 
-    public <R> CompletionStage<R> invokeAsync(String entityId, Function<? super E, CompletionStage<R>> action, BiConsumer<R,Throwable> callback) {
+    public <R> CompletionStage<R> invokeAsync(String entityId, Function<? super E, CompletionStage<R>> action, BiConsumer<R, Throwable> callback) {
         return invokeAsync(entityId, action).whenComplete(callback);
     }
 
@@ -279,9 +275,9 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
     }
 
 
-    public <R> void invokeAsyncWithCallback(String entityId, BiConsumer<E,CompletionHandler> action) {
+    public <R> void invokeWithCallback(String entityId, BiConsumer<E, CompletionHandler> action) {
         E entity = prepareInvocation(entityId);
-        action.accept(entity, (r,t) -> handleCompletion(entityId, entity, t));
+        action.accept(entity, (r, t) -> handleCompletion(entityId, entity, t));
     }
 
 
@@ -336,7 +332,7 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
      * <h1>Detailed flow of instantiation of an entity:</h1>
      * <ol>
      * <li>If the runtime has an instance in its cache, it will used the cached entity</li>
-     * <li>Otherwise it will call {@link Lifecycle#instantiate(String, EventStore)} to create uninitialized instance</li>
+     * <li>Otherwise it will call {@link Lifecycle#instantiate(String)} to create uninitialized instance</li>
      * <li>If snapshot exists in {@link Persistence#getSnapshotStore() SnapshotStore}, it will be offered to an entity by
      * invoking its method {@link EventSourcedEntity#restoreFromSnapshot(Object)}</li>
      * <li>If entity accepts the snapshot, all events from the history past the snapshot will be passed, in order
@@ -361,7 +357,7 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
     }
 
     private E recoverEntity(String entityId) {
-        E instance = conf.lifecycle().instantiate(entityId, conf.persistence().getEventStore());
+        E instance = conf.lifecycle().instantiate(entityId);
         conf.persistence().getSnapshotStore().recover(instance, conf.persistence().getEventLog(), RECOVERY_STATE_HANDLER);
         return instance;
     }

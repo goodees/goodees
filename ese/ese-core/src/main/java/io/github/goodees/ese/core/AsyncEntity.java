@@ -40,6 +40,8 @@ import java.util.concurrent.CompletionStage;
  */
 public abstract class AsyncEntity extends EventSourcedEntity {
 
+    private final EventStore store;
+
     /**
      * Create the entity. The runtime will provide all necessary dependencies for the class.
      *
@@ -48,7 +50,8 @@ public abstract class AsyncEntity extends EventSourcedEntity {
      * @see EventSourcingRuntimeBase#lookup(String) for instantiation lifecycle
      */
     protected AsyncEntity(String id, EventStore store) {
-        super(id, store);
+        super(id);
+        this.store = store;
     }
 
     /**
@@ -86,7 +89,7 @@ public abstract class AsyncEntity extends EventSourcedEntity {
         return AsyncResult.invoke(() -> {
             store.persist(event);
             return event;
-        }).whenComplete((e,t) -> handleEventPersistence(Collections.singleton(e), t));
+        }).whenComplete(this::handlePersistence);
     }
 
     /**
@@ -101,16 +104,7 @@ public abstract class AsyncEntity extends EventSourcedEntity {
         return AsyncResult.invoke(() -> {
             store.persist(events);
             return Arrays.asList(events);
-        }).whenComplete(this::handleEventPersistence);
-    }
-
-    private void handleEventPersistence(Collection<? extends Event> events, Throwable t) {
-        if (t == null) {
-            applyEvents(events.stream());
-            getInvocationState().eventsPersisted(events);
-        } else {
-            getInvocationState().eventStoreFailed(t);
-        }
+        }).whenComplete(this::handlePersistence);
     }
 
     /**
@@ -124,7 +118,7 @@ public abstract class AsyncEntity extends EventSourcedEntity {
         return AsyncResult.invoke(() -> {
             store.persist(events);
             return events;
-        }).whenComplete(this::handleEventPersistence);
+        }).whenComplete(this::handlePersistence);
     }
 
     /**

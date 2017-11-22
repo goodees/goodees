@@ -92,7 +92,7 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
     protected EventSourcingRuntimeBase() {
         lifecycleAdapter = new EntityInvocationHandler.Lifecycle<E>() {
             @Override
-            public E instantiate(String id, EventStore eventStore) {
+            public E instantiate(String id) {
                 return EventSourcingRuntimeBase.this.instantiate(id);
             }
 
@@ -110,11 +110,6 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
             @Override
             public EventLog getEventLog() {
                 return EventSourcingRuntimeBase.this.getEventLog();
-            }
-
-            @Override
-            public EventStore getEventStore() {
-                return null; // in this api event store is up to final implementation
             }
 
             @Override
@@ -147,7 +142,7 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
 
     /**
      * Create a new uninitialized instance for given id. Serves for creating the entity with reference to the
-     * EventStore, correct identity (as required by {@link EventSourcedEntity#EventSourcedEntity(String, EventStore)}
+     * EventStore, correct identity (as required by {@link EventSourcedEntity#EventSourcedEntity(String)}
      * and any other dependencies the entity might need to execute request, e. g. references to stateless ejbs, singletons,
      * or this runtime. Runtime will restore the state from snapshot and journal afterwards.
      * @param entityId the identity of the entity

@@ -39,8 +39,11 @@ import java.util.stream.Stream;
  */
 public abstract class SyncEntity extends EventSourcedEntity {
 
+    private final EventStore store;
+
     protected SyncEntity(String id, EventStore store) {
-        super(id, store);
+        super(id);
+        this.store = store;
     }
 
     /**
@@ -65,10 +68,9 @@ public abstract class SyncEntity extends EventSourcedEntity {
     protected void persistAndUpdate(Event event) throws EventStoreException {
         try {
             store.persist(event);
-            applyEvent(event);
-            getInvocationState().eventPersisted(event);
+            handlePersistence(event, null);
         } catch (EventStoreException e) {
-            getInvocationState().eventStoreFailed(e);
+            handlePersistenceFailure(e);
             throw e;
         }
 
@@ -77,10 +79,9 @@ public abstract class SyncEntity extends EventSourcedEntity {
     protected void persistAllAndUpdate(Event... events) throws EventStoreException {
         try {
             store.persist(events);
-            applyEvents(Stream.of(events));
-            getInvocationState().eventsPersisted(Arrays.asList(events));
+            handlePersistence(Arrays.asList(events), null);
         } catch (EventStoreException e) {
-            getInvocationState().eventStoreFailed(e);
+            handlePersistenceFailure(e);
             throw e;
         }
     }
@@ -88,10 +89,9 @@ public abstract class SyncEntity extends EventSourcedEntity {
     protected void persistAllAndUpdate(Collection<? extends Event> events) throws EventStoreException {
         try {
             store.persist(events);
-            applyEvents(events.stream());
-            getInvocationState().eventsPersisted(events);
+            handlePersistence(events, null);
         } catch (EventStoreException e) {
-            getInvocationState().eventStoreFailed(e);
+            handlePersistenceFailure(e);
             throw e;
         }
     }
