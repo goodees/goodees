@@ -229,31 +229,24 @@ public abstract class DispatchingEventSourcingRuntime<E extends EventSourcedEnti
 
         @Override
         public <R extends Request<RS>, RS> void execute(String entityId, R request, BiConsumer<RS, Throwable> callback) {
-            try {
-                E entity = lookup(entityId);
-                Objects.requireNonNull(entity, () -> "Lookup returned null for entityId " + entityId);
-                entity.getInvocationState().preInvocation();
-                BiConsumer<RS, Throwable> completion = (rs, t) -> {
-                    t = Dispatcher.unwrapCompletionException(t);
-                    handleCompletion(entityId, entity, t);
-                    // if application code caught the EventStoreException, we return it in callback anyway...
-                    if (entity.getInvocationState().getState() == EventSourcedEntity.EntityInvocationState.EVENT_STORE_FAILED
-                            && !(t instanceof EventStoreException)) {
-                        callback.accept(null, EventStoreException.suppressed(entityId));
-                    } else {
-                        callback.accept(rs, t);
-                    }
-                };
+            invocationHandler.<RS>invokeAsyncWithCallback(entityId, (entity, handleCompletion) -> {
                 try {
-                    invokeEntity(entity, request, completion);
+                    invokeEntity(entity, request, (rs, t) -> {
+                        try {
+                            Throwable unwrapped = Dispatcher.unwrapCompletionException(t);
+                            unwrapped = handleCompletion.completed(rs, unwrapped);
+                            callback.accept(rs, unwrapped);
+                        } catch (Exception e) {
+                            logger.error("Entity with ID {} failed on completion of request {} ", entityId, request, e);
+                            callback.accept(null, e);
+                        }
+                    });
                 } catch (Exception e) {
                     logger.error("Entity with ID {} failed on invocation of request {}. Entity: {}", entityId, request, entity, e);
-                    completion.accept(null, e);
+                    Throwable t = handleCompletion.completed(null, e);
+                    callback.accept(null, t);
                 }
-            } catch (Exception e) {
-                logger.error("Fatal error while looking up entity {} for invocation of request {}", entityId, request, e);
-                callback.accept(null, e);
-            }
+            });
         }
 
         @Override

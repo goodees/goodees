@@ -190,7 +190,7 @@ public abstract class GeneralRuntimeTest<E extends EventSourcedEntity> {
         throw new Exception("The side effect failed");
     }
 
-    @Test
+    @Test(timeout = 2000)
     public void event_store_exception_will_not_run_side_effects() throws InterruptedException, EventStoreException {
         try {
             fireSideEffectWithOptimisticLock(testName.getMethodName());
@@ -252,7 +252,7 @@ public abstract class GeneralRuntimeTest<E extends EventSourcedEntity> {
         assertEventHandlerInvoked(testName.getMethodName(), null);
     }
 
-    @Test
+    @Test(timeout = 2000)
     public void event_handlers_are_invoked_after_failed_execution() throws InterruptedException {
         try {
             fireSideEffectWithOptimisticLock(testName.getMethodName());
@@ -263,7 +263,7 @@ public abstract class GeneralRuntimeTest<E extends EventSourcedEntity> {
 
     protected abstract void assertEventHandlerInvoked(String instance, Throwable exception);
 
-    @Test
+    @Test(timeout = 2000)
     public void entity_is_disposed_after_persistence_error() {
         try {
             fireSideEffectWithOptimisticLock(testName.getMethodName());
@@ -272,7 +272,7 @@ public abstract class GeneralRuntimeTest<E extends EventSourcedEntity> {
         }
     }
 
-    @Test
+    @Test(timeout = 2000)
     public void entity_is_cleared_and_reinstantiated_after_persistence_error() throws EventStoreException {
         performRequestWithOptimisticLockButCatchException(testName.getMethodName());
         TestRequests.StatusProbe result = probe(testName.getMethodName());

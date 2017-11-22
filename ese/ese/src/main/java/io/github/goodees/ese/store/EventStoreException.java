@@ -76,7 +76,9 @@ public class EventStoreException extends RuntimeException {
     public static EventStoreException suppressed(String entityId, Throwable suppressed) {
         EventStoreException e = new EventStoreException(Fault.PROGRAMMATIC_ERROR, "Entity " + entityId
                 + " suppressed event store exception.", null);
-        e.addSuppressed(suppressed);
+        if (suppressed != null) {
+            e.addSuppressed(suppressed);
+        }
         return e;
     }
     public static EventStoreException unsupported(Event event) {

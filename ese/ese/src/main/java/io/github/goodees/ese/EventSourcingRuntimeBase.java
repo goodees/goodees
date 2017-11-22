@@ -28,8 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 
 /**
  * Common logic for facade to speaking with entities. It instantiates the entities, recovers their state, manages their snapshots
@@ -85,7 +84,66 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
         }
     };
 
-    private ConcurrentMap<String, E> entities = new ConcurrentHashMap<>();
+    private final EntityInvocationHandler.Lifecycle<E> lifecycleAdapter;
+    private final EntityInvocationHandler.Persistence<E> persistenceAdapter;
+    private final EntityInvocationHandler.WorkingMemory<E> workingMemory = new MapBasedWorkingMemory<>();
+    protected final EntityInvocationHandler<E> invocationHandler;
+
+    protected EventSourcingRuntimeBase() {
+        lifecycleAdapter = new EntityInvocationHandler.Lifecycle<E>() {
+            @Override
+            public E instantiate(String id, EventStore eventStore) {
+                return EventSourcingRuntimeBase.this.instantiate(id);
+            }
+
+            @Override
+            public void dispose(E entity) {
+                EventSourcingRuntimeBase.this.dispose(entity);
+            }
+
+            @Override
+            public boolean shouldStoreSnapshot(E entity, int eventsSinceSnapshot) {
+                return EventSourcingRuntimeBase.this.shouldStoreSnapshot(entity, eventsSinceSnapshot);
+            }
+        };
+        persistenceAdapter = new EntityInvocationHandler.Persistence<E>() {
+            @Override
+            public EventLog getEventLog() {
+                return EventSourcingRuntimeBase.this.getEventLog();
+            }
+
+            @Override
+            public EventStore getEventStore() {
+                return null; // in this api event store is up to final implementation
+            }
+
+            @Override
+            public SnapshotStore<?> getSnapshotStore() {
+                return EventSourcingRuntimeBase.this.getSnapshotStore();
+            }
+
+            @Override
+            public boolean isInLatestKnownState(E entity) {
+                return EventSourcingRuntimeBase.this.isInLatestKnownState(entity);
+            }
+        };
+        invocationHandler = new EntityInvocationHandler<>(new EntityInvocationHandler.Configuration<E>() {
+            @Override
+            public EntityInvocationHandler.WorkingMemory<E> memory() {
+                return workingMemory;
+            }
+
+            @Override
+            public EntityInvocationHandler.Persistence persistence() {
+                return persistenceAdapter;
+            }
+
+            @Override
+            public EntityInvocationHandler.Lifecycle<E> lifecycle() {
+                return lifecycleAdapter;
+            }
+        });
+    }
 
     /**
      * Create a new uninitialized instance for given id. Serves for creating the entity with reference to the
@@ -163,44 +221,6 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
     public abstract <R extends Request<RS>, RS> CompletableFuture<RS> execute(String entityId, R request);
 
     /**
-     * Common logic to execute after the invocation of request completes.
-     * Handles:
-     * <ul>
-     *     <li>Removal of entity if event storing failed (e. g. entity was stale)</li>
-     *     <li>Storing snapshots</li>
-     * </ul>
-     * Subclasses should call this method as soon as entity invocation completes to handle these guarantees that are
-     * promised by method {@link #execute(String, Request)}.
-     * @param entityId identity of the entity
-     * @param entity instance of the entity
-     * @param t non-null, when invocation completed with an exception
-     */
-    protected void handleCompletion(String entityId, E entity, Throwable t) {
-        if (entity.getInvocationState().getState() == EventSourcedEntity.EntityInvocationState.EVENT_STORE_FAILED) {
-            entity.getInvocationState().postInvocation();
-            clearEntity(entityId, entity);
-        } else {
-            if (t != null) {
-                entity.getInvocationState().failed(t);
-            } else if (entity.getInvocationState().getState() != EventSourcedEntity.EntityInvocationState.EVENT_STORE_FAILED) {
-                entity.getInvocationState().completed();
-            }
-            entity.getInvocationState().postInvocation();
-            if (shouldStoreSnapshot(entity, entity.getEventsSinceSnapshot())) {
-                if (getSnapshotStore().store(entity, RECOVERY_STATE_HANDLER)) {
-                    // reset eventsSinceSnapshot
-                    entity.snapshotStored();
-                }
-            }
-        }
-    }
-
-    private void clearEntity(String entityId, E entity) {
-        entities.remove(entityId);
-        dispose(entity);
-    }
-
-    /**
      * Decide if snapshot should be stored for given instance. The decision, and snapshot is done after request has
      * been invoked.
      * @param entity instance to snapshot
@@ -219,38 +239,8 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
         return getEventLog().confirmsEntityReflectsCurrentState(entity);
     }
 
-    /**
-     * Common logic for obtaining entity instance from the cache.
-     * <h1>Detailed flow of instantiation of an entity:</h1>
-     * <ol>
-     *     <li>If the runtime has an instance in its cache, it will used the cached entity</li>
-     *     <li>Otherwise it will call {@link #instantiate(String)} to create uninitialized instance</li>
-     *     <li>If snapshot exists in {@link #getSnapshotStore() SnapshotStore}, it will be offered to an entity by
-     *         invoking its method {@link EventSourcedEntity#restoreFromSnapshot(Object)}</li>
-     *     <li>If entity accepts the snapshot, all events from the history past the snapshot will be passed, in order
-     *         they were created, into method {@link EventSourcedEntity#updateState(Event)}. If entity did not accept
-     *         the snapshots, all events for the entity will be replayed.</li>
-     *     <li>{@link EventSourcedEntity#initialize()} is called to let entity initialize its internal processes.</li>
-     * </ol>
-     * After these steps the entity is initialized and requests will be passed to it.
-     *
-     * @param entityId the identity of an entity
-     * @return instance is latest known state
-     * @see #instantiate(String) for the actual lookup
-     */
-    protected E lookup(String entityId) {
-        //MP: If instantiate and recover fails, then there is nothing you can do. So ex will just propagate to client.
-        E entity = entities.computeIfAbsent(entityId, this::recoverEntity);
-        if (!isInLatestKnownState(entity)) {
-            getSnapshotStore().recover(entity, getEventLog(), RECOVERY_STATE_HANDLER);
-        }
-        // assert invocation state is idle...
-        return entity;
+    E lookup(String id) {
+        return invocationHandler.invokeSync(id, (e) -> e);
     }
 
-    private E recoverEntity(String entityId) {
-        E instance = instantiate(entityId);
-        getSnapshotStore().recover(instance, getEventLog(), RECOVERY_STATE_HANDLER);
-        return instance;
-    }
 }

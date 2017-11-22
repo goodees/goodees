@@ -53,13 +53,13 @@ import java.util.function.*;
 public class EntityInvocationHandler<E extends EventSourcedEntity> {
     private final Configuration<E> conf;
 
-    interface WorkingMemory<E extends EventSourcedEntity> {
+    public interface WorkingMemory<E extends EventSourcedEntity> {
         E lookup(String id, Function<String,E> instantiator);
 
         void remove(String id);
     }
 
-    interface Persistence {
+    public interface Persistence<E extends EventSourcedEntity> {
         /**
          * Event log of this runtime. EventLog must be consistent with EventStore used for this runtime, so it can always
          * return consistent set of events for an entity past specific version. It is used for recovery of an entity
@@ -86,12 +86,12 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
          * @param entity the instance of an entity
          * @return false if state of the instance is not the last known
          */
-        default boolean isInLatestKnownState(EventSourcedEntity entity) {
+        default boolean isInLatestKnownState(E entity) {
             return getEventLog().confirmsEntityReflectsCurrentState(entity);
         }
     }
 
-    interface Lifecycle<E extends EventSourcedEntity> {
+    public interface Lifecycle<E extends EventSourcedEntity> {
         /**
          * Create a new uninitialized instance for given id and EventStore. Serves for creating the entity with reference to the
          * EventStore, correct identity (as required by {@link EventSourcedEntity#EventSourcedEntity(String, EventStore)}
@@ -122,7 +122,8 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         boolean shouldStoreSnapshot(E entity, int eventsSinceSnapshot);
     }
 
-    interface Configuration<E extends EventSourcedEntity> {
+    // here an abstract class may help with future growth better
+    public interface Configuration<E extends EventSourcedEntity> {
         WorkingMemory<E> memory();
 
         Persistence persistence();
@@ -221,14 +222,26 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         E entity = prepareInvocation(entityId);
         try {
             R result = action.invoke(entity);
-            checkForSuppressedEventStoreException(entity, null);
-            handleCompletion(entityId, entity, null);
+            Throwable t = handleCompletion(entityId, entity, null);
+            if (t != null) {
+                rethrow(t);
+            }
             return result;
         } catch (Exception e) {
             logger.info("Entity with ID {} failed on invocation. Entity: {}", entityId, entity, e);
-            checkForSuppressedEventStoreException(entity, e);
             handleCompletion(entityId, entity, e);
             throw e;
+        }
+    }
+
+    private void rethrow(Throwable t) {
+        if (t instanceof RuntimeException) {
+            throw (RuntimeException)t;
+        } else if (t instanceof Error){
+            throw (Error)t;
+        } else {
+            // wrap if it is not a runtime exception
+            throw new RuntimeException(t);
         }
     }
 
@@ -237,15 +250,6 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         Objects.requireNonNull(entity, () -> "Lookup returned null for entityId " + entityId);
         entity.getInvocationState().preInvocation();
         return entity;
-    }
-
-    private void checkForSuppressedEventStoreException(E entity, Throwable e) {
-        if (entity.getInvocationState().getState() == EventSourcedEntity.EntityInvocationState.EVENT_STORE_FAILED &&
-                !(e instanceof EventStoreException)) {
-            EventStoreException ex = EventStoreException.suppressed(entity.getIdentity());
-            handleCompletion(entity.getIdentity(), entity, ex);
-            throw ex;
-        }
     }
 
     public <R, X extends Exception> void invokeSync(String entityId, ThrowingInvocation<? super E, R, X> action, BiConsumer<R, Throwable> callback) {
@@ -261,7 +265,6 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         E entity = prepareInvocation(entityId);
         return
                 action.apply(entity).handle((r, t) -> {
-                    checkForSuppressedEventStoreException(entity, t);
                     handleCompletion(entityId, entity, t);
                     return r;
                 });
@@ -270,6 +273,17 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
     public <R> CompletionStage<R> invokeAsync(String entityId, Function<? super E, CompletionStage<R>> action, BiConsumer<R,Throwable> callback) {
         return invokeAsync(entityId, action).whenComplete(callback);
     }
+
+    public interface CompletionHandler {
+        Throwable completed(Object result, Throwable exceptionResult);
+    }
+
+
+    public <R> void invokeAsyncWithCallback(String entityId, BiConsumer<E,CompletionHandler> action) {
+        E entity = prepareInvocation(entityId);
+        action.accept(entity, (r,t) -> handleCompletion(entityId, entity, t));
+    }
+
 
     /**
      * Common logic to execute after the invocation of request completes.
@@ -283,17 +297,23 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
      * @param entity   instance of the entity
      * @param t        non-null, when invocation completed with an exception
      */
-    private void handleCompletion(String entityId, E entity, Throwable t) {
+    private Throwable handleCompletion(String entityId, E entity, Throwable t) {
         if (entity.getInvocationState().getState() == EventSourcedEntity.EntityInvocationState.EVENT_STORE_FAILED) {
-            // TODO: why would I call post invocation actions on failed entity?
+            if (!(entity.getInvocationState().getThrowable() instanceof EventStoreException)) {
+                entity.getInvocationState().eventStoreFailed(EventStoreException.suppressed(entityId, t));
+            }
+            Throwable result = entity.getInvocationState().getThrowable();
+            // Call so that post invocation actions can cleanup after EventStoreException.
             entity.getInvocationState().postInvocation();
             clearEntity(entityId, entity);
+            return result;
         } else {
             if (t != null) {
                 entity.getInvocationState().failed(t);
-            } else if (entity.getInvocationState().getState() != EventSourcedEntity.EntityInvocationState.EVENT_STORE_FAILED) {
+            } else {
                 entity.getInvocationState().completed();
             }
+            Throwable result = entity.getInvocationState().getThrowable();
             entity.getInvocationState().postInvocation();
             if (conf.lifecycle().shouldStoreSnapshot(entity, entity.getEventsSinceSnapshot())) {
                 if (conf.persistence().getSnapshotStore().store(entity, RECOVERY_STATE_HANDLER)) {
@@ -301,6 +321,7 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
                     entity.snapshotStored();
                 }
             }
+            return result;
         }
     }
 

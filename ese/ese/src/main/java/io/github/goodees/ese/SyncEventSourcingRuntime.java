@@ -37,7 +37,6 @@ public abstract class SyncEventSourcingRuntime<E extends SyncEntity> extends Dis
     protected <RS, R extends Request<RS>> void invokeEntity(E entity, R request, BiConsumer<RS, Throwable> callback)
             throws Exception {
         RS response = entity.execute(request);
-        //Question MP: why we have null there?
         callback.accept(response, null);
     }
 
