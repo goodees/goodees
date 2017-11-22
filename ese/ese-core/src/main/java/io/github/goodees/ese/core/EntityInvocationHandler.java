@@ -32,8 +32,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -130,48 +132,11 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         Lifecycle<E> lifecycle();
     }
 
-    protected EntityInvocationHandler(Configuration<E> configuration) {
+    public EntityInvocationHandler(Configuration<E> configuration) {
         conf = configuration;
     }
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
-    /**
-     * Accessor to internal entity state for snapshot store. Pass it as argument to
-     * {@link SnapshotStore#recover(EventSourcedEntity, EventLog, SnapshotStore.EntityStateHandler)} to initialize
-     * an EventSourcedEntity.
-     */
-    protected static final SnapshotStore.EntityStateHandler RECOVERY_STATE_HANDLER = new SnapshotStore.EntityStateHandler() {
-        @Override
-        public void updateStateVersion(EventSourcedEntity entity, long version) {
-            entity.updateStateVersion(version);
-        }
-
-        @Override
-        public void replayEvent(EventSourcedEntity entity, Event event) {
-            entity.applyEvent(event);
-        }
-
-        @Override
-        public void startRecovery(EventSourcedEntity entity) {
-            entity.getInvocationState().recovering();
-        }
-
-        @Override
-        public void finishRecover(EventSourcedEntity entity) {
-            entity.initialize();
-            entity.getInvocationState().initialized();
-        }
-
-        @Override
-        public boolean restoreFromSnapshot(EventSourcedEntity entity, Object snapshot) {
-            return entity.restoreFromSnapshot(snapshot);
-        }
-
-        @Override
-        public Object createSnapshot(EventSourcedEntity entity) {
-            return entity.createSnapshot();
-        }
-    };
 
     @FunctionalInterface
     public interface ThrowingInvocation<E, R, X extends Throwable> {
@@ -315,7 +280,7 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
             Throwable result = entity.getInvocationState().getThrowable();
             entity.getInvocationState().postInvocation();
             if (conf.lifecycle().shouldStoreSnapshot(entity, entity.getEventsSinceSnapshot())) {
-                if (conf.persistence().getSnapshotStore().store(entity, RECOVERY_STATE_HANDLER)) {
+                if (conf.persistence().getSnapshotStore().store(entity, entity::createSnapshot)) {
                     // reset eventsSinceSnapshot
                     entity.snapshotStored();
                 }
@@ -353,7 +318,13 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         //MP: If instantiate and recover fails, then there is nothing you can do. So ex will just propagate to client.
         E entity = conf.memory().lookup(entityId, this::recoverEntity);
         if (!conf.persistence().isInLatestKnownState(entity)) {
-            conf.persistence().getSnapshotStore().recover(entity, conf.persistence().getEventLog(), RECOVERY_STATE_HANDLER);
+            E recoveredEntity = recover(entity);
+            if (recoveredEntity != entity) {
+                // oh boy
+                conf.memory().remove(entityId);
+                conf.memory().lookup(entityId, (_id) -> recoveredEntity);
+                return recoveredEntity;
+            }
         }
         // assert invocation state is idle...
         return entity;
@@ -361,7 +332,47 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
 
     private E recoverEntity(String entityId) {
         E instance = conf.lifecycle().instantiate(entityId);
-        conf.persistence().getSnapshotStore().recover(instance, conf.persistence().getEventLog(), RECOVERY_STATE_HANDLER);
+        instance = recover(instance);
         return instance;
+    }
+
+    private E recover(E entity) {
+        long recoveryStart = System.currentTimeMillis();
+        entity.getInvocationState().recovering();
+        E recoveredEntity = recoverFromSnapshot(entity);
+        try (EventLog.StoredEvents<? extends Event> events = conf.persistence().getEventLog().readEvents(entity.getIdentity(), entity.getStateVersion())) {
+            AtomicInteger recoveredEventsCount = new AtomicInteger();
+            events.foreach(event -> {
+                try {
+                    recoveredEntity.applyEvent(event);
+                } catch (RuntimeException e) {
+                    logger.error("Entity {} failed to replay event {}", entity.getIdentity(), event.entityStateVersion(), e);
+                    throw e;
+                }
+                recoveredEventsCount.incrementAndGet();
+            });
+            recoveredEntity.getInvocationState().initialized();
+            logger.info("Entity {} recovered in {} ms replaying {} events", entity.getIdentity(),
+                    System.currentTimeMillis() - recoveryStart, recoveredEventsCount.get());
+        }
+        return recoveredEntity;
+    }
+
+    private E recoverFromSnapshot(E entity) {
+        Optional<SnapshotStore.Snapshot> snapshot = conf.persistence().getSnapshotStore().readSnapshot(entity.getIdentity());
+        if (snapshot.isPresent()) {
+            try {
+                if (entity.restoreFromSnapshot(snapshot.get().getSnapshot())) {
+                    entity.updateStateVersion(snapshot.get().getEntityVersion());
+                }
+            } catch (Exception e) {
+                logger.error("Error when trying to restore from snapshot", e);
+                // and we need to throw away the entity now and replay from beginning.
+                // we cannot call lookup, as we're part of it
+                conf.lifecycle().dispose(entity);
+                entity = conf.lifecycle().instantiate(entity.getIdentity());
+            }
+        }
+        return entity;
     }
 }

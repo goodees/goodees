@@ -138,7 +138,7 @@ public abstract class EventSourcedEntity {
     }
 
     /**
-     * Called during state recovery for any event read from the event log.
+     * Called during state recovery for any event read from the event log, and any event persisted during invocation of entity.
      * @param event past event from the event log
      */
     void applyEvent(Event event) {
@@ -277,6 +277,7 @@ public abstract class EventSourcedEntity {
         }
 
         void initialized() {
+            initialize();
             state = EntityInvocationState.IDLE;
         }
 

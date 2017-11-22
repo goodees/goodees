@@ -48,43 +48,6 @@ import java.util.concurrent.CompletableFuture;
 public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
-    /**
-     * Accessor to internal entity state for snapshot store. Pass it as argument to
-     * {@link SnapshotStore#recover(EventSourcedEntity, EventLog, SnapshotStore.EntityStateHandler)} to initialize
-     * an EventSourcedEntity.
-     */
-    protected static final SnapshotStore.EntityStateHandler RECOVERY_STATE_HANDLER = new SnapshotStore.EntityStateHandler() {
-        @Override
-        public void updateStateVersion(EventSourcedEntity entity, long version) {
-            entity.updateStateVersion(version);
-        }
-
-        @Override
-        public void replayEvent(EventSourcedEntity entity, Event event) {
-            entity.applyEvent(event);
-        }
-
-        @Override
-        public void startRecovery(EventSourcedEntity entity) {
-            entity.getInvocationState().recovering();
-        }
-
-        @Override
-        public void finishRecover(EventSourcedEntity entity) {
-            entity.initialize();
-            entity.getInvocationState().initialized();
-        }
-
-        @Override
-        public boolean restoreFromSnapshot(EventSourcedEntity entity, Object snapshot) {
-            return entity.restoreFromSnapshot(snapshot);
-        }
-
-        @Override
-        public Object createSnapshot(EventSourcedEntity entity) {
-            return entity.createSnapshot();
-        }
-    };
 
     private final EntityInvocationHandler.Lifecycle<E> lifecycleAdapter;
     private final EntityInvocationHandler.Persistence<E> persistenceAdapter;

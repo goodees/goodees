@@ -28,26 +28,28 @@ import io.github.goodees.ese.core.store.SnapshotStore;
 
 
 public class MockEntities {
-    public static EventSourcedEntity entityWithSnapshot(EventStore eventStore, String entityId, int stateVersion,
-            Object snapshot) {
-        return new EventSourcedEntity(entityId) {
-            {
-                updateStateVersion(stateVersion);
-            }
+    public static class MockEntity extends EventSourcedEntity {
+        private final Object snapshot;
 
-            @Override
-            protected void updateState(Event event) {
-            }
+        MockEntity(String entityId, int stateVersion, Object snapshot) {
+            super(entityId);
+            updateStateVersion(stateVersion);
+            this.snapshot = snapshot;
+        }
 
-            @Override
-            protected Object createSnapshot() {
-                return snapshot;
-            }
-        };
+        public Object getSnapshot() {
+            return snapshot;
+        }
+
+        @Override
+        protected void updateState(Event event) {
+
+        }
     }
 
-    public static SnapshotStore.EntityStateHandler handler() {
-        return EventSourcingRuntimeBase.RECOVERY_STATE_HANDLER;
+    public static MockEntity entityWithSnapshot(EventStore eventStore, String entityId, int stateVersion,
+            Object snapshot) {
+        return new MockEntity(entityId, stateVersion, snapshot);
     }
 
 }

@@ -57,4 +57,8 @@ public class JdbcTestEntity extends EventSourcedEntity {
     public int getPayload() {
         return payload;
     }
+
+    public int eventsSinceSnapshot() {
+        return getEventsSinceSnapshot();
+    }
 }

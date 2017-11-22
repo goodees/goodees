@@ -141,6 +141,10 @@ public class TestRequests {
         public DummyRecoveredEvent(EventSourcedEntity source) {
             super(source);
         }
+
+        public DummyRecoveredEvent(String entityId, long entityVersion) {
+            super(entityId, entityVersion);
+        }
     }
 
     public static class ProbeExecutedEvent extends EventHeader {

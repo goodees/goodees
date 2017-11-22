@@ -38,8 +38,6 @@ public class AsyncRuntimeTest extends GeneralRuntimeTest {
 
     static Map<String, AsyncTestEntity> disposed = new HashMap<>();
     static class AsyncTestRuntime extends AsyncEventSourcingRuntime<AsyncTestEntity> {
-        static SnapshotStore.EntityStateHandler TEST_RECOVERY_HANDLER = RECOVERY_STATE_HANDLER;
-
         @Override
         protected ExecutorService getExecutorService() {
             return testExecutorService;
@@ -105,16 +103,16 @@ public class AsyncRuntimeTest extends GeneralRuntimeTest {
 
     @Override
     protected String prepareSnapshot(String testcase) {
-        EventSourcedEntity asyncTestEntity = mockEntity(testcase, 10, new Object());
-        snapshotStore.store(asyncTestEntity, AsyncTestRuntime.TEST_RECOVERY_HANDLER);
+        Object snapshot = new Object();
+        EventSourcedEntity asyncTestEntity = mockEntity(testcase, 10, snapshot);
+        snapshotStore.store(asyncTestEntity, () -> snapshot);
         return testcase;
     }
 
     @Override
     protected String prepareEvents(String testcase) throws EventStoreException {
-        AsyncTestEntity inst = runtime.instantiate(testcase);
-        snapshotStore.recover(inst, eventStore, AsyncTestRuntime.TEST_RECOVERY_HANDLER);
-        eventStore.persist(new TestRequests.DummyRecoveredEvent(inst));
+        Long maxId = eventStore.readEvents(testcase, -1).reduce(snapshotStore.getSnapshottedVersion(testcase), (version, e) -> Long.max(version, e.entityStateVersion()));
+        eventStore.persist(new TestRequests.DummyRecoveredEvent(testcase, maxId+1));
         return testcase;
     }
 

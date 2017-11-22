@@ -40,8 +40,6 @@ public class SyncRuntimeTest extends GeneralRuntimeTest {
     private static SyncTestRuntime runtime = new SyncTestRuntime();
 
     static class SyncTestRuntime extends SyncEventSourcingRuntime<SyncTestEntity> {
-        static SnapshotStore.EntityStateHandler TEST_RECOVERY_HANDLER = RECOVERY_STATE_HANDLER;
-
         @Override
         protected ExecutorService getExecutorService() {
             return testExecutorService;
@@ -104,16 +102,16 @@ public class SyncRuntimeTest extends GeneralRuntimeTest {
 
     @Override
     protected String prepareSnapshot(String testcase) {
-        EventSourcedEntity syncTestEntity = mockEntity(testcase, 10, new Object());
-        snapshotStore.store(syncTestEntity, SyncTestRuntime.TEST_RECOVERY_HANDLER);
+        Object snapshot = new Object();
+        EventSourcedEntity syncTestEntity = mockEntity(testcase, 10, snapshot);
+        snapshotStore.store(syncTestEntity, () -> snapshot);
         return testcase;
     }
 
     @Override
     protected String prepareEvents(String testcase) throws EventStoreException {
-        SyncTestEntity inst = runtime.instantiate(testcase);
-        snapshotStore.recover(inst, eventStore, SyncTestRuntime.TEST_RECOVERY_HANDLER);
-        eventStore.persist(new TestRequests.DummyRecoveredEvent(inst));
+        Long maxId = eventStore.readEvents(testcase, -1).reduce(snapshotStore.getSnapshottedVersion(testcase), (version, e) -> Long.max(version, e.entityStateVersion()));
+        eventStore.persist(new TestRequests.DummyRecoveredEvent(testcase, maxId+1));
         return testcase;
     }
 

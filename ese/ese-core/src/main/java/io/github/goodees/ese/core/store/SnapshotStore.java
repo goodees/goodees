@@ -20,7 +20,9 @@ package io.github.goodees.ese.core.store;
  * #L%
  */
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import io.github.goodees.ese.core.Event;
 import io.github.goodees.ese.core.EventSourcedEntity;
@@ -36,60 +38,37 @@ import org.slf4j.LoggerFactory;
 public abstract class SnapshotStore<P> {
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
-    /**
-     * A wrapper for non-public API of entity. Provided by runtime to the snapshot store to initialize entity state.
-     */
-    public interface EntityStateHandler {
-        void updateStateVersion(EventSourcedEntity entity, long version);
+    public static class Snapshot {
+        private final long entityVersion;
+        private final Object snapshot;
 
-        boolean restoreFromSnapshot(EventSourcedEntity entity, Object snapshot);
+        Snapshot(long entityVersion, Object snapshot) {
+            this.entityVersion = entityVersion;
+            this.snapshot = snapshot;
+        }
 
-        Object createSnapshot(EventSourcedEntity entity);
+        public long getEntityVersion() {
+            return entityVersion;
+        }
 
-        void replayEvent(EventSourcedEntity entity, Event event);
-
-        void startRecovery(EventSourcedEntity entity);
-
-        void finishRecover(EventSourcedEntity entity);
+        public Object getSnapshot() {
+            return snapshot;
+        }
     }
 
-    /**
-     * Apply most recent snapshot and all events past it. This serves for reconstructing the current state of entity.
-     * When a sn
-     *
-     * @param entity   - entity on which recovery will take place and which state will be altered.
-     * @param eventLog implementation of event log that will provide remaining events
-     * @return number of events recovered.
-     */
-    public int recover(EventSourcedEntity entity, EventLog eventLog, EntityStateHandler handler) {
-        long recoveryStart = System.currentTimeMillis();
-        handler.startRecovery(entity);
-        SnapshotRecord snapshotRecord = retrieveSnapshotRecord(entity.getIdentity());
-        try {
-            if (snapshotRecord != null && handler.restoreFromSnapshot(entity, deserializeSnapshot(snapshotRecord))) {
-                handler.updateStateVersion(entity, snapshotRecord.header.entityStateVersion());
-            }
-        } catch (Exception e) {
-            logger.error("Recovery from snapshot of entity {} failed", entity.getIdentity(), e);
-            // now we can only rollback to version 0, and hope for the best.
-            handler.updateStateVersion(entity, 0);
-        }
-        try (EventLog.StoredEvents<? extends Event> events = eventLog.readEvents(entity.getIdentity(), entity.getStateVersion())) {
-            AtomicInteger recoveredEventsCount = new AtomicInteger();
-            events.foreach(event -> {
-                try {
-                    handler.replayEvent(entity, event);
-                } catch (RuntimeException e) {
-                    logger.error("Entity {} failed to replay event {}", entity.getIdentity(), event.entityStateVersion(), e);
-                    throw e;
+    public Optional<Snapshot> readSnapshot(String entityId) {
+        SnapshotRecord snapshotRecord = retrieveSnapshotRecord(entityId);
+        if (snapshotRecord != null) {
+            try {
+                Object snapshot = deserializeSnapshot(snapshotRecord);
+                if (snapshot != null) {
+                    return Optional.of(new Snapshot(snapshotRecord.header.entityStateVersion(), snapshot));
                 }
-                recoveredEventsCount.incrementAndGet();
-            });
-            handler.finishRecover(entity);
-            logger.info("Entity {} recovered in {} ms replaying {} events", entity.getIdentity(),
-                    System.currentTimeMillis() - recoveryStart, recoveredEventsCount.get());
-            return recoveredEventsCount.get();
+            } catch (Exception e) {
+                logger.error("Failure during deserialization of snapshot of {}", entityId, e);
+            }
         }
+        return Optional.empty();
     }
 
     /**
@@ -101,9 +80,9 @@ public abstract class SnapshotStore<P> {
      * @see #serializeSnapshot(String, long, Object)
      * @see #storeSnapshotRecord(SnapshotStore.SnapshotRecord)
      */
-    public boolean store(EventSourcedEntity entity, EntityStateHandler handler) {
+    public boolean store(EventSourcedEntity entity, Supplier<Object> snapshotSupplier) {
         try {
-            Object snapshot = handler.createSnapshot(entity);
+            Object snapshot = snapshotSupplier.get();
             SnapshotRecord snapshotRecord = serializeSnapshot(entity.getIdentity(), entity.getStateVersion(), snapshot);
             if (snapshotRecord != null) {
                 storeSnapshotRecord(snapshotRecord);
