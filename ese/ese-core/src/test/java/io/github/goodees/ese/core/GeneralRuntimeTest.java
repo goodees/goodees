@@ -295,7 +295,7 @@ public abstract class GeneralRuntimeTest<E extends EventSourcedEntity> {
     protected abstract void assertEntityDisposed(String id);
 
     protected EventSourcedEntity mockEntity(String entityId, long stateVersion, Object snapshot) {
-        return new EventSourcedEntity(entityId, eventStore) {
+        return new EventSourcedEntity(entityId) {
             {
                 updateStateVersion(stateVersion);
             }

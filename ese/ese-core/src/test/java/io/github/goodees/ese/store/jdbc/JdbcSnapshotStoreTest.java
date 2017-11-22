@@ -52,7 +52,7 @@ public class JdbcSnapshotStoreTest extends JdbcTest {
     @Test
     public void snapshot_deserialized() {
         store(mockEntity(name(), 8, new JdbcTestSnapshot(10)));
-        JdbcTestEntity entity = new JdbcTestEntity(name(), eventStore);
+        JdbcTestEntity entity = new JdbcTestEntity(name());
         assertEquals(0, recover(entity));
         assertEquals(10, entity.getPayload());
         assertEquals(8L, entity.getStateVersion());
@@ -61,7 +61,7 @@ public class JdbcSnapshotStoreTest extends JdbcTest {
     @Test
     public void multiple_versions_deserialized() {
         store(mockEntity(name(), 8, new JdbcTestSnapshot(10)));
-        JdbcTestEntity entity = new JdbcTestEntity(name(), eventStore);
+        JdbcTestEntity entity = new JdbcTestEntity(name());
         assertEquals(0, recover(entity));
         assertEquals(10, entity.getPayload());
         assertEquals(8L, entity.getStateVersion());

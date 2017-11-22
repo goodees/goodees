@@ -28,8 +28,8 @@ import io.github.goodees.ese.core.store.EventStore;
 public class JdbcTestEntity extends EventSourcedEntity {
     private int payload;
 
-    public JdbcTestEntity(String id, EventStore store) {
-        super(id, store);
+    public JdbcTestEntity(String id) {
+        super(id);
     }
 
     @Override

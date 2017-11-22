@@ -30,7 +30,7 @@ import io.github.goodees.ese.core.store.SnapshotStore;
 public class MockEntities {
     public static EventSourcedEntity entityWithSnapshot(EventStore eventStore, String entityId, int stateVersion,
             Object snapshot) {
-        return new EventSourcedEntity(entityId, eventStore) {
+        return new EventSourcedEntity(entityId) {
             {
                 updateStateVersion(stateVersion);
             }
