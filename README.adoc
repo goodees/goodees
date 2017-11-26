@@ -13,3 +13,12 @@ link:websecurity/[websecurity]::
   
 link:ese/[ESE]::
    Library for implementing Event Sourced Entities in Java SE (and more).
+   
+== Roadmap
+
+There are some more things I (@pdudits) plan to publish, but it takes some time to make them clean from project details:
+
+* Cors headers filter with configurable behaviour
+* Passive aggresive rate limiter, that puts requests on async wait list
+* IP filter
+* Request threadpool executor, that is better suitable for handling request peaks than standard ThreadPoolExecutor
