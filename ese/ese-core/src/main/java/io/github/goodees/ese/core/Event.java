@@ -67,5 +67,14 @@ public interface Event {
      * @see EventSourcedEntity#nextEventVersion()
      */
     long entityStateVersion();
+    
+    
+    interface FromEntity<T> {
+        T from(Event event);
+        
+        default T from(EventSourcedEntity entity) {
+            return from(new EventHeader(entity));
+        }
+    }
 
 }
