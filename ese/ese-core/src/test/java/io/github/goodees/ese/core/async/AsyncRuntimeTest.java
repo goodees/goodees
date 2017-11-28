@@ -34,7 +34,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 
-public class AsyncRuntimeTest extends GeneralRuntimeTest {
+public class AsyncRuntimeTest extends BaseRuntimeTest {
 
     static Map<String, AsyncTestEntity> disposed = new HashMap<>();
     static class AsyncTestRuntime extends AsyncEventSourcingRuntime<AsyncTestEntity> {

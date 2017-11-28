@@ -34,7 +34,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 
-public class SyncRuntimeTest extends GeneralRuntimeTest {
+public class SyncRuntimeTest extends BaseRuntimeTest {
 
     static Map<String, SyncTestEntity> disposed = new HashMap<>();
     private static SyncTestRuntime runtime = new SyncTestRuntime();
