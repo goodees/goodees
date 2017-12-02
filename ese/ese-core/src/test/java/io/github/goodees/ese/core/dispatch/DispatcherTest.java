@@ -305,7 +305,7 @@ public class DispatcherTest {
         immediateRetries = false;
         CompletableFuture<Integer> result = cut.executeWithTimeout("failing_timeout", Command.FAIL, 100,
             TimeUnit.MILLISECONDS);
-        result.get(110, TimeUnit.MILLISECONDS);
+        result.get(200, TimeUnit.MILLISECONDS);
     }
 
 }
