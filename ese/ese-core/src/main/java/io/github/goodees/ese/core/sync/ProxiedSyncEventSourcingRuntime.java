@@ -18,16 +18,24 @@ package io.github.goodees.ese.core.sync;
 import io.github.goodees.ese.core.EntityInvocationHandler;
 import io.github.goodees.ese.core.Request;
 import io.github.goodees.ese.core.dispatch.DispatchingEventSourcingRuntime;
+import io.github.goodees.ese.core.matching.RequestHandler;
 import io.github.goodees.ese.core.store.EventLog;
 import io.github.goodees.ese.core.store.SnapshotStore;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.logging.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,19 +62,22 @@ public abstract class ProxiedSyncEventSourcingRuntime<E extends ProxiedSyncEntit
     public R execute(String id) {
         return (R) Proxy.newProxyInstance(getClass().getClassLoader(), requestHandlerClass, (p,m,a) -> {
             try {
-                return delegate.execute(id, new InvocationRequest(m, a)).get();
+                return execute(id, m, a).get();
             } catch (ExecutionException e) {
                 logger.info("Rethrowing",e.getCause());
                 throw e.getCause();
             }
         });
     }
-    
-        
+
+    protected CompletableFuture<Object> execute(String id, Method m, Object[] a) {
+        return delegate.execute(id, new InvocationRequest(m, a));
+    }
+                
     public R execute(String id, long timeout, TimeUnit unit) {
         return (R) Proxy.newProxyInstance(getClass().getClassLoader(), requestHandlerClass, (p,m,a) -> {
             try {
-                return delegate.execute(id, new InvocationRequest(m, a)).get(timeout, unit);
+                return execute(id, m, a).get(timeout, unit);
             } catch (ExecutionException e) {
                 logger.info("Rethrowing",e.getCause());
                 throw e.getCause();
@@ -142,6 +153,51 @@ public abstract class ProxiedSyncEventSourcingRuntime<E extends ProxiedSyncEntit
     
     protected EntityInvocationHandler<E> invocationHandler() {
         return delegate.invocationHandler();
+    }
+    
+    public static abstract class WithAsyncInterface<E extends ProxiedSyncEntity<R>,R,A> extends ProxiedSyncEventSourcingRuntime<E, R> {
+
+        private final Class<A> asyncRequestHandlerClass;
+        private final Map<Method, Method> mapping = new HashMap<>();
+        private final Class<R> requestHandlerClass;
+        
+        protected WithAsyncInterface(Class<R> requestHandlerClass, Class<A> asyncRequestHandlerClass) {
+            super(requestHandlerClass);
+            this.requestHandlerClass = requestHandlerClass;
+            if (!asyncRequestHandlerClass.isInterface()) {
+                throw new IllegalArgumentException("Async request handler must be also an interface");
+            }
+            this.asyncRequestHandlerClass = asyncRequestHandlerClass;
+            checkAsyncInterface();
+        }
+        
+        public A executeAsync(String id) {
+           return (A) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{asyncRequestHandlerClass}, (p,m,a) -> { 
+               return execute(id, mapping.get(m), a);
+           });
+        }
+        
+        private void checkAsyncInterface() {
+            for (Method m : asyncRequestHandlerClass.getMethods()) {
+                try {
+                    if (!m.getReturnType().isAssignableFrom(CompletableFuture.class) || m.getReturnType().equals(Object.class)) {
+                        throw new IllegalArgumentException("All methods of async request handler must return CompletableFuture. "
+                                + "Offending method: "+m.toGenericString());
+                    }
+                    //CompletableFuture<T>
+                    Class<?> targetType = (Class<?>)((ParameterizedType) m.getGenericReturnType()).getActualTypeArguments()[0];
+                    Method originalMethod = requestHandlerClass.getMethod(m.getName(), m.getParameterTypes());
+                    if (originalMethod.getReturnType().equals(void.class) ? !targetType.equals(Void.class) // more primitive handling needed
+                            : !targetType.isAssignableFrom(originalMethod.getReturnType())) {
+                        throw new IllegalArgumentException("Return type is not compatible for "+m.toGenericString()+
+                                ". Original method returns "+originalMethod.getGenericReturnType().getTypeName());
+                    }
+                    mapping.put(m, originalMethod);
+                } catch (NoSuchMethodException | SecurityException ex) {
+                    throw new IllegalStateException("Cannot inspect request handler classes", ex);
+                }
+            }
+        }
     }
     
     
