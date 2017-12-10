@@ -1,0 +1,9 @@
+io.github.goodees.ese.core
+io.github.goodees.ese.core.async
+io.github.goodees.ese.core.dispatch
+io.github.goodees.ese.core.matching
+io.github.goodees.ese.core.store
+io.github.goodees.ese.core.sync
+io.github.goodees.ese.immutables
+io.github.goodees.ese.store.inmemory
+io.github.goodees.ese.store.jdbc
