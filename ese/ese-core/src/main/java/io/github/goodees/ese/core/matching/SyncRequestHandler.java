@@ -56,6 +56,7 @@ public class SyncRequestHandler {
      * @param <R> type of request
      * @param <RESPONSE> type of response
      * @return completion stage corresponding to the response or null if nothing matched.
+     * @throws Exception when matched method throws one
      */
     public <R extends Request<RESPONSE>, RESPONSE> RESPONSE handle(R request) throws Exception {
         if (request == null) {
@@ -131,6 +132,7 @@ public class SyncRequestHandler {
          * representation if the resulting class is Y as first argument instead of original request.
          * @param clazz request class
          * @param unwrap transformation function
+         * @param constraint the subclass of X request should be casted to.
          * @param callback function to invoke
          * @param <R> type of request
          * @param <RESPONSE> type of response

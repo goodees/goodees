@@ -20,6 +20,7 @@ package io.github.goodees.ese.core.dispatch;
  * #L%
  */
 
+import io.github.goodees.ese.core.EntityInvocationHandler;
 import io.github.goodees.ese.core.EventSourcedEntity;
 import io.github.goodees.ese.core.EventSourcingRuntimeBase;
 import io.github.goodees.ese.core.Request;
@@ -195,9 +196,9 @@ public abstract class DispatchingEventSourcingRuntime<E extends EventSourcedEnti
      * </ul>
      * Actual execution flow is following:
      * <ol>
-     *     <li>Entity instance is obtained via {@link #lookup(String)}</li>
+     *     <li>Entity instance is obtained via {@link EntityInvocationHandler.Lifecycle}</li>
      *     <li>Request is invoked by passing control to {@link #invokeEntity(EventSourcedEntity, Request, BiConsumer)}</li>
-     *     <li>The passed callback with call {@link #handleCompletion(String, EventSourcedEntity, Throwable)} and then pass
+     *     <li>The passed callback with call {@link EntityInvocationHandler#handleCompletion(String, EventSourcedEntity, Throwable)} and then pass
      *         control back to dispatcher</li>
      * </ol>
      * If any exception happens during these steps, there response completes exceptionally with that exception.

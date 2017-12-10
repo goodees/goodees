@@ -40,7 +40,7 @@ import java.util.concurrent.CompletableFuture;
  * <p>This class does not prescribe any specific execution and dispatching methods, this is left to subclasses.</p>
  * <h2>Lifecycles</h2>
  * {@link #execute(String, Request)} describes the lifecycle of single request execution.
- * {@link #lookup(String)} describes the process of obtaining an initialized entity
+ * {@link EntityInvocationHandler.Lifecycle} describes the process of obtaining an initialized entity
  * @see AsyncEventSourcingRuntime
  * @see SyncEventSourcingRuntime
  * @param <E> the type of entity this runtime handles
@@ -127,7 +127,7 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
      * The SnapshotStore of this runtime. Snapshot store will be called to store a snapshot of an entity whenever
      * method {@link #shouldStoreSnapshot(EventSourcedEntity, int)} will return true.
      * @return SnapshotStore of this runtime
-     * @see #lookup(String)
+     * @see EntityInvocationHandler.Lifecycle
      * @see #execute(String, Request)
      */
     protected abstract SnapshotStore getSnapshotStore();
@@ -136,7 +136,7 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
      * Event log of this runtime. EventLog must be consistent with EventStore used for this runtime, so it can always
      * return consistent set of events for an entity past specific version. It is used for recovery of an entity
      * @return event log of this runtime
-     * @see #lookup(String)
+     * @see EntityInvocationHandler.Lifecycle
      */
     protected abstract EventLog getEventLog();
 
@@ -147,7 +147,7 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
      *
      * <p>When request is due for invocation, the runtime will perform following steps:
      * <ol>
-     *     <li>Obtain an up-to-date instance, as described by {@link #lookup(String)}</li>
+     *     <li>Obtain an up-to-date instance, as described by {@link EntityInvocationHandler.Lifecycle}</li>
      *     <li>Pass the request to the instance. Subclasses of runtime define the contract between runtime and entity</li>
      *     <li>When call completes, {@link EntityInvocationHandler#handleCompletion(String, EventSourcedEntity, Throwable)} executes following logic:
      *      <ol>
@@ -176,7 +176,7 @@ public abstract class EventSourcingRuntimeBase<E extends EventSourcedEntity> {
      * @param <R> Type of request
      * @param <RS> Response type matching to the request
      * @return CompletableFuture of the result.
-     * @see #lookup(String)
+     * @see EntityInvocationHandler.Lifecycle
      */
     public abstract <R extends Request<RS>, RS> CompletableFuture<RS> execute(String entityId, R request);
 

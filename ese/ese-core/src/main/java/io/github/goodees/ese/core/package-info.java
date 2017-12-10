@@ -15,16 +15,16 @@
  * that is consistent with the fact that its dependent system failed. The only thing that is guaranteed to be atomic
  * is storing of generated events.
  * <p>An entity has an unique id, represented with a String.
- * <p>Entities extend subclasses {@link io.github.goodees.ese.EventSourcedEntity}, based on their execution style.</p>
+ * <p>Entities extend subclasses {@link EventSourcedEntity}, based on their execution style.</p>
  *
  * <h2>Runtimes and invocation of an entity</h2>
- * <p>For every entity class a {@linkplain io.github.goodees.ese.EventSourcingRuntimeBase runtime} will be implemented
+ * <p>For every entity class a {@linkplain EventSourcingRuntimeBase runtime} will be implemented
  * Runtime cares for creating and destroying entity instances, injecting them with their dependencies to other business
  * objects, such as event storage.
  * <p>Runtime also needs to guarantee that an single entity processes only single request at time (within single application on single JVM).
- * For this, the matching dispatcher in implemented in {@linkplain io.github.goodees.ese.dispatch dispatch package}.
- * <p>Runtimes extends from a {@linkplain io.github.goodees.ese.EventSourcingRuntimeBase base class}, that doesn't prescribe
- * how this isolation should be achieved. However, the actual implementations extends from {@link io.github.goodees.ese.DispatchingEventSourcingRuntime}
+ * For this, the matching dispatcher in implemented in {@linkplain io.github.goodees.ese.core.dispatch dispatch package}.
+ * <p>Runtimes extends from a {@linkplain EventSourcingRuntimeBase base class}, that doesn't prescribe
+ * how this isolation should be achieved. However, the actual implementations extends from {@link DispatchingEventSourcingRuntime}
  * that uses the aforementioned dispatcher, and in addition to simple invocation also support timeouts and delayed
  * invocations.
  * <p>Since the thread safety of entities is implemented via queues rather than locks in the dispatcher,
@@ -33,19 +33,19 @@
  * <p>Two approaches for defining entities and runtimes exist, based
  * on which kind of processing is suitable for the entity:
  * <ul>
- * <li>{@link io.github.goodees.ese.AsyncEntity} with its corresponding runtime {@link io.github.goodees.ese.AsyncEventSourcingRuntime}
- * process requests asynchronously returning a {@link java.util.concurrent.CompletableFuture}, that completes when
- * execution finishes. The execution method to implement is {@link io.github.goodees.ese.AsyncEntity#execute(io.github.goodees.ese.Request)}.
- * <li>{@link io.github.goodees.ese.SyncEntity} handled by runtime {@link io.github.goodees.ese.SyncEventSourcingRuntime}
+ * <li>{@link AsyncEntity} with its corresponding runtime {@link AsyncEventSourcingRuntime}
+ * process requests asynchronously returning a {@link CompletableFuture}, that completes when
+ * execution finishes. The execution method to implement is {@link AsyncEntity#execute(io.github.goodees.ese.core.Request)}.
+ * <li>{@link SyncEntity} handled by runtime {@link SyncEventSourcingRuntime}
  * handles request synchronously or throw an exception.
  * </ul>
  *
  * <h2>Request processing flow</h2>
  * The flow surrounding the invocation of the entity is described in documentation of
- * {@link io.github.goodees.ese.EventSourcingRuntimeBase#execute(java.lang.String, io.github.goodees.ese.Request)}.
+ * {@link EventSourcingRuntimeBase#execute(java.lang.String, io.github.goodees.ese.core.Request)}.
  *
- * The flow of invocation within entity is described in respective execute methods of either {@linkplain io.github.goodees.ese.AsyncEntity#execute(io.github.goodees.ese.Request) AsyncEntity}
- * or {@linkplain io.github.goodees.ese.SyncEntity#execute(io.github.goodees.ese.Request) SyncEntity}.
+ * The flow of invocation within entity is described in respective execute methods of either {@linkplain AsyncEntity#execute(io.github.goodees.ese.core.Request) AsyncEntity}
+ * or {@linkplain SyncEntity#execute(io.github.goodees.ese.core.Request) SyncEntity}.
  * <h3>What is an side effect?</h3>
  * <p>The documentation of execute method refer to term side effect. We understand a side effect as a
  * <strong>reaction to a request, that doesn't change state of entity, rather may change state of some external
@@ -54,23 +54,31 @@
  * <p>We recognize three types of side effects:</p>
  * <ol>
  *     <li>Giving response to caller. This side effect is implemented by returning from execute method, e. g.
- *     {@link io.github.goodees.ese.AsyncEntity#execute(io.github.goodees.ese.Request)} or
- *     {@link io.github.goodees.ese.SyncEntity#execute(io.github.goodees.ese.Request)}</li>
+ *     {@link AsyncEntity#execute(io.github.goodees.ese.core.Request)} or
+ *     {@link SyncEntity#execute(io.github.goodees.ese.core.Request)}</li>
  *     <li>Changing state of external system. These kind of side effects may fail. Since entity is non-transactional, it
  *         needs to handle the failure explicitly, and compensate for the failure by emiting more events, or corrective requests for self.
  *         Usually there are implemented within the flow of {@code execute} methods</li>
- *     <li>Fire and forget side effects, where the failure of the side effect does not affact the state of the entity. Such side effects
- *     are usually perfomed in {@link io.github.goodees.ese.EventSourcedEntity#performPostInvocationActions(java.util.List, java.lang.Throwable)}</li>
+ *     <li>Fire and forget side effects, where the failure of the side effect does not affect the state of the entity. Such side effects
+ *     are usually perfomed in {@link EventSourcedEntity#performPostInvocationActions(java.util.List, java.lang.Throwable)}</li>
  * </ol>
  *
- * @see io.github.goodees.ese.EventSourcingRuntimeBase#execute(java.lang.String, io.github.goodees.ese.Request)
- * @see io.github.goodees.ese.EventSourcedEntity
- * @see io.github.goodees.ese.store.EventStore
- * @see io.github.goodees.ese.Event
- * @see io.github.goodees.ese.AsyncEntity
- * @see io.github.goodees.ese.SyncEntity
+ * @see EventSourcingRuntimeBase#execute(java.lang.String, io.github.goodees.ese.Request)
+ * @see EventSourcedEntity
+ * @see EventStore
+ * @see Event
+ * @see AsyncEntity
+ * @see SyncEntity
  */
 package io.github.goodees.ese.core;
+
+import io.github.goodees.ese.core.sync.SyncEntity;
+import io.github.goodees.ese.core.sync.SyncEventSourcingRuntime;
+import io.github.goodees.ese.core.store.EventStore;
+import io.github.goodees.ese.core.async.AsyncEntity;
+import io.github.goodees.ese.core.async.AsyncEventSourcingRuntime;
+import io.github.goodees.ese.core.dispatch.DispatchingEventSourcingRuntime;
+import java.util.concurrent.CompletableFuture;
 
 /*-
  * #%L

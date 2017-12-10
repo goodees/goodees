@@ -20,6 +20,7 @@ package io.github.goodees.ese.core.async;
  * #L%
  */
 
+import io.github.goodees.ese.core.EntityInvocationHandler;
 import io.github.goodees.ese.core.Event;
 import io.github.goodees.ese.core.EventSourcedEntity;
 import io.github.goodees.ese.core.EventSourcingRuntimeBase;
@@ -50,7 +51,7 @@ public abstract class AsyncEntity extends EventSourcedEntity {
      *
      * @param store the event store used to store events
      * @param id the identity of the entity
-     * @see EventSourcingRuntimeBase#lookup(String) for instantiation lifecycle
+     * @see EntityInvocationHandler.Lifecycle for instantiation lifecycle
      */
     protected AsyncEntity(String id, EventStore store) {
         super(id);

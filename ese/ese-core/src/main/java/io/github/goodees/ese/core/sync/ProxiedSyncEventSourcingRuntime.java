@@ -17,15 +17,14 @@ package io.github.goodees.ese.core.sync;
 
 import io.github.goodees.ese.core.EntityInvocationHandler;
 import io.github.goodees.ese.core.Request;
+import io.github.goodees.ese.core.dispatch.DispatcherConfiguration;
 import io.github.goodees.ese.core.dispatch.DispatchingEventSourcingRuntime;
-import io.github.goodees.ese.core.matching.RequestHandler;
 import io.github.goodees.ese.core.store.EventLog;
 import io.github.goodees.ese.core.store.SnapshotStore;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
-import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -34,14 +33,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.logging.Level;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
- * @author patrik
+ * Runtime for proxied sync entities.
+ * 
+ * This offers the simplest interface for invoking methods on entities, but has few drawbacks.
+ * The actual invocation is still asynchronous, going over Dispatcher, therefore multiple execute methods exists, that
+ * define how the result should be fetched from the completable future.
+ * @see ProxiedSyncEntity
  */
 public abstract class ProxiedSyncEventSourcingRuntime<E extends ProxiedSyncEntity<R>,R> {
     protected static final long RETRY_NOW = DispatchingEventSourcingRuntime.RETRY_NOW;
@@ -51,6 +52,10 @@ public abstract class ProxiedSyncEventSourcingRuntime<E extends ProxiedSyncEntit
     private final Class<?>[] requestHandlerClass;
     private final DispatchingDelegate delegate = new DispatchingDelegate();
     
+    /**
+     * Create new runtime.
+     * @param requestHandlerClass the interface that is defined as entity's request handler.
+     */
     protected ProxiedSyncEventSourcingRuntime(Class<R> requestHandlerClass) {
         if (!requestHandlerClass.isInterface()) {
             throw new IllegalArgumentException("Request Handler class must be an interface. Provided class "+requestHandlerClass.getSimpleName());
@@ -59,6 +64,11 @@ public abstract class ProxiedSyncEventSourcingRuntime<E extends ProxiedSyncEntit
         
     }
     
+    /**
+     * Return a invocation proxy, that waits indefinetely for result.
+     * @param id entity id
+     * @return entity's request handler.
+     */
     public R execute(String id) {
         return (R) Proxy.newProxyInstance(getClass().getClassLoader(), requestHandlerClass, (p,m,a) -> {
             try {
@@ -73,7 +83,14 @@ public abstract class ProxiedSyncEventSourcingRuntime<E extends ProxiedSyncEntit
     protected CompletableFuture<Object> execute(String id, Method m, Object[] a) {
         return delegate.execute(id, new InvocationRequest(m, a));
     }
-                
+     
+    /**
+     * Return an 
+     * @param id
+     * @param timeout
+     * @param unit
+     * @return 
+     */
     public R execute(String id, long timeout, TimeUnit unit) {
         return (R) Proxy.newProxyInstance(getClass().getClassLoader(), requestHandlerClass, (p,m,a) -> {
             try {
@@ -235,7 +252,7 @@ public abstract class ProxiedSyncEventSourcingRuntime<E extends ProxiedSyncEntit
                 try {
                     callback.accept((RS) r.m.invoke(handler, r.arguments),null);
                 } catch (InvocationTargetException ite) {
-                    logger.info("Caught", ite);
+                    logger.info("Caught ITE", ite.getTargetException());
                     callback.accept(null, ite.getTargetException());
                 } catch (Throwable t) {
                      logger.info("Caught", t);

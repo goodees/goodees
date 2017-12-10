@@ -19,7 +19,6 @@ package io.github.goodees.ese.core;
  * limitations under the License.
  * #L%
  */
-
 import io.github.goodees.ese.core.async.AsyncEventSourcingRuntime;
 import io.github.goodees.ese.core.dispatch.DispatchingEventSourcingRuntime;
 import io.github.goodees.ese.core.store.EventLog;
@@ -40,35 +39,87 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
- * Common logic for facade to speaking with entities. It instantiates the entities, recovers their state, manages their snapshots
- * and invocation lifecycle. In order for recovery to work, the runtime needs {@link EventLog} to see the past events,
- * and {@link SnapshotStore} for storing the snapshots. Entities will then need to be created with an {@link EventStore}
- * that uses as is consistent with the EventLog.
- * <p>This class does not prescribe any specific execution and dispatching methods, this is left to subclasses.</p>
- * <h2>Lifecycles</h2>
- * {@link #invokeSync(String, ThrowingInvocation)} describes the lifecycle of single request execution.
- * {@link #lookup(String)} describes the process of obtaining an initialized entity
+ * Common logic for facade to speaking with entities. It instantiates the entities, recovers their state, manages their
+ * snapshots and invocation lifecycle. In order for recovery to work, the runtime needs {@link EventLog} to see the past
+ * events, and {@link SnapshotStore} for storing the snapshots. Entities will then need to be created with an
+ * {@link EventStore} that uses as is consistent with the EventLog.
+ * <p>
+ * This class allows for many direct and indirect invocations of the entity. For all of them it assures correct 
+ * initialization of the entity, as well as its cleanup in case of event store errors.</p>
+ *
+ * <h2 id="request-lifecycle">Request lifecycle</h2>
+ * <p>
+ * When request is due for invocation, the runtime will perform following steps:
+ * <ol>
+ * <li>Obtain an up-to-date instance, as described by {@linkplain Lifecycle}</li>
+ * <li>Pass the request to the instance. Subclasses of runtime define the contract between runtime and entity</li>
+ * <li>When call completes, {@link #handleCompletion(String, EventSourcedEntity, Throwable)} executes following logic:
+ * <ol>
+ * <li>Entities {@linkplain EventSourcedEntity#getInvocationState() invocation state} will reflect successful or
+ * unsuccessful completion</li>
+ * <li>Method {@link EventSourcedEntity#performPostInvocationActions(List, Throwable)} is called to handle post
+ * invocation side effects}</li>
+ * <li>If the call completes exceptionally:
+ * <ol>
+ * <li>When it was due to exception from storage processing, the entity will be removed from cache, so it would be
+ * recovered into fresh state on next request. The call with result in {@link EventStoreException}, regardless of
+ * exception handling within the entity.</li>
+ * <li>A runtime can optionally choose to retry the request, e. g. like implemented in
+ * {@link DispatchingEventSourcingRuntime}</li>
+ * <li>The returned future completes exceptionally</li>
+ * </ol>
+ * Otherwise, the future completes successfully with the value returned by entity</li>
+ * <li>if runtime decides it {@linkplain Lifecycle#shouldStoreSnapshot(EventSourcedEntity, int)} should store snapshot
+ * of entity state}, and entity provides a snapshot, it will be stored.</li>
+ * </ol>
+ * </ol>
  *
  * @param <E> the type of entity this runtime handles
  * @see AsyncEventSourcingRuntime
  * @see SyncEventSourcingRuntime
  */
 public class EntityInvocationHandler<E extends EventSourcedEntity> {
+
     private final Configuration<E> conf;
 
+    /**
+     * Configuration aspect describing in-memory storage of entities.
+     *
+     * @param <E> the type of entity
+     */
     public interface WorkingMemory<E extends EventSourcedEntity> {
+
+        /**
+         * Return stored entity, or create and store a new instance.
+         *
+         * @param id id of the entity
+         * @param instantiator code to invoke for obtaining a fresh entity.
+         * @return an instance of entity
+         */
         E lookup(String id, Function<String, E> instantiator);
 
+        /**
+         * Remove entity from working memory.
+         *
+         * @param id id of the entity
+         */
         void remove(String id);
     }
 
+    /**
+     * Configuration aspect describing reading and writing to persistent storage.
+     *
+     * @param <E>
+     */
     public interface Persistence<E extends EventSourcedEntity> {
+
         /**
-         * Event log of this runtime. EventLog must be consistent with EventStore used for this runtime, so it can always
-         * return consistent set of events for an entity past specific version. It is used for recovery of an entity
+         * Event log of this runtime. EventLog must be consistent with EventStore used for this runtime, so it can
+         * always return consistent set of events for an entity past specific version. It is used for recovery of an
+         * entity
          *
          * @return event log of this runtime
-         * @see #lookup(String)
+         * @see EntityInvocationHandler.Lifecycle
          */
         EventLog getEventLog();
 
@@ -77,7 +128,7 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
          * method {@link Lifecycle#shouldStoreSnapshot(EventSourcedEntity, int)} will return true.
          *
          * @return SnapshotStore of this runtime
-         * @see #lookup(String)
+         * @see EntityInvocationHandler.Lifecycle
          */
         SnapshotStore<?> getSnapshotStore();
 
@@ -92,13 +143,32 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         }
     }
 
+    /**
+     * Configuration aspect describing lifecycle of entity instances.
+     * <h2 id="entity-lifecycle">Entity lifecycle</h2>
+     * <ol>
+     * <li>If the {@linkplain WorkingMemory} contains an instance in its cache, it will be used</li>
+     * <li>Otherwise it will call {@link Lifecycle#instantiate(String)} to create uninitialized instance</li>
+     * <li>If snapshot exists in {@link Persistence#getSnapshotStore() SnapshotStore}, it will be offered to an entity
+     * by invoking its method {@link EventSourcedEntity#restoreFromSnapshot(Object)}</li>
+     * <li>If entity accepts the snapshot, all events from the history past the snapshot will be passed, in order they
+     * were created, into method {@link EventSourcedEntity#updateState(Event)}. If entity did not accept the snapshots,
+     * all events for the entity will be replayed.</li>
+     * <li>{@link EventSourcedEntity#initialize()} is called to let entity initialize its internal processes.</li>
+     * </ol>
+     * After these steps the entity is initialized and requests will be passed to it.
+     *
+     * @param <E>
+     */
     public interface Lifecycle<E extends EventSourcedEntity> {
+
         /**
-         * Create a new uninitialized instance for given id and EventStore. Serves for creating the entity with reference to the
-         * EventStore, correct identity (as required by {@link EventSourcedEntity#EventSourcedEntity(String)}
-         * and any other dependencies the entity might need to execute request, e. g. references to stateless ejbs, singletons,
-         * or this runtime. Runtime will restore the state from snapshot and journal afterwards.
+         * Create a new uninitialized instance for given id. Serves for creating the entity with correct identity (as
+         * required by {@link EventSourcedEntity#EventSourcedEntity(String)} and any other dependencies the entity might
+         * need to execute request, e. g. references to stateless ejbs, singletons, or the dispatcher. Invocation
+         * handler will restore the state from snapshot and journal afterwards.
          *
+         * @param id id of the entity
          * @return instantiated entity
          */
         E instantiate(String id);
@@ -116,15 +186,22 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
          * Decide if snapshot should be stored for given instance. The decision, and snapshot is done after request has
          * been invoked.
          *
-         * @param entity              instance to snapshot
+         * @param entity instance to snapshot
          * @param eventsSinceSnapshot events applied since last snapshot
          * @return true if storage of snapshot should be attempted.
          */
         boolean shouldStoreSnapshot(E entity, int eventsSinceSnapshot);
     }
 
-    // here an abstract class may help with future growth better
+    /**
+     * Roll all configuration aspect into single interface. The plan is to create a builder that allow reasonable
+     * combinations of all three aspects. For now the (older) runtime base classes require abstract methods to be
+     * defined that define these aspects.
+     *
+     * @param <E>
+     */
     public interface Configuration<E extends EventSourcedEntity> {
+
         WorkingMemory<E> memory();
 
         Persistence persistence();
@@ -132,55 +209,55 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         Lifecycle<E> lifecycle();
     }
 
-    public EntityInvocationHandler(Configuration<E> configuration) {
-        conf = configuration;
-    }
-
-    protected final Logger logger = LoggerFactory.getLogger(getClass());
-
+    /**
+     * Helper interface describing a function that may throw a checked exception.
+     *
+     * @param <E> target object type (entity)
+     * @param <R> result type
+     * @param <X> throwable type
+     */
     @FunctionalInterface
     public interface ThrowingInvocation<E, R, X extends Throwable> {
+
+        /**
+         * Apply invocation, return result or throw exception.
+         *
+         * @param entity target of invocation
+         * @return result
+         * @throws X if necessary
+         */
         R invoke(E entity) throws X;
     }
 
     /**
-     * Execute a request and return future result. This is the entry point for passing request to the entity and getting results from it.
-     * <p>The runtime guarantees, that for given {@code entityId}, there is only one entity instance in the memory and it will
-     * only execute single request at time.</p>
+     * Create handler based on configuration.
+     *
+     * @param configuration configuration to use
+     */
+    public EntityInvocationHandler(Configuration<E> configuration) {
+        conf = configuration;
+    }
+
+    /**
+     * SLF4J logger for handler and its subclasses.
+     */
+    protected final Logger logger = LoggerFactory.getLogger(getClass());
+
+    /**
+     * Invoke an action on an entity. This is the most straightforward type of call.
      * <p>
-     * <p>When request is due for invocation, the runtime will perform following steps:
-     * <ol>
-     * <li>Obtain an up-to-date instance, as described by {@link #lookup(String)}</li>
-     * <li>Pass the request to the instance. Subclasses of runtime define the contract between runtime and entity</li>
-     * <li>When call completes, {@link #handleCompletion(String, EventSourcedEntity, Throwable)} executes following logic:
-     * <ol>
-     * <li>Entities {@linkplain EventSourcedEntity#getInvocationState() invocation state} will reflect successful
-     * or unsuccessful completion</li>
-     * <li>Method {@link EventSourcedEntity#performPostInvocationActions(List, Throwable)} is called to handle post invocation side effects}</li>
-     * <li>If the call completes exceptionally:
-     * <ol>
-     * <li>When it was due to exception from storage processing, the entity will be removed from cache, so it would
-     * be recovered into fresh state on next request</li>
-     * <li>A runtime can optionally choose to retry the request, e. g. like implemented in {@link DispatchingEventSourcingRuntime}</li>
-     * <li>The returned future completes exceptionally</li>
-     * </ol>
-     * Otherwise, the future completes successfully with the value returned by entity</li>
-     * <li>if runtime decides it {@linkplain Lifecycle#shouldStoreSnapshot(EventSourcedEntity, int)} should store snapshot of entity state},
-     * and entity provides a snapshot, it will be stored.</li>
-     * </ol>
-     * </ol>
-     * <p>
-     * <p>
-     * <p>We are returning completable future, so that it is easy to either chain the calls, or synchronously wait.
-     * However the clients should not call any mutation methods of the CompletableFuture, such as {@linkplain CompletableFuture#complete(Object)}.
-     * They may, and in current implementations will, throw an UnsupportedOperationException.</p>
+     * We are returning completable future, so that it is easy to either chain the calls, or synchronously wait. However
+     * the clients should not call any mutation methods of the CompletableFuture, such as
+     * {@linkplain CompletableFuture#complete(Object)}. They may, and in current implementations will, throw an
+     * UnsupportedOperationException.</p>
      *
      * @param entityId the identity of the entity to be called
-     * @param action   the action to perform on the entity
-     * @param <R>      Type of request
-     * @param <X>      Checked exception of the action
+     * @param action the action to perform on the entity
+     * @param <R> Type of request
+     * @param <X> Checked exception of the action
      * @return CompletableFuture of the result.
-     * @see #lookup(String)
+     * @see Lifecycle
+     * @throws X if action throws.
      */
     public <R, X extends Exception> R invokeSync(String entityId, ThrowingInvocation<? super E, R, X> action) throws X {
         E entity = prepareInvocation(entityId);
@@ -216,7 +293,17 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         return entity;
     }
 
-    public <R, X extends Exception> void invokeSync(String entityId, ThrowingInvocation<? super E, R, X> action, BiConsumer<R, Throwable> callback) {
+    /**
+     * Invoke an action of an entity and pass the result to a callback. This is useful in dispatching scenarios, where
+     * the completion stage returned to client must get completed with a result.
+     * @param <R> result type
+     * @param <X> exception type
+     * @param entityId entity id
+     * @param action the action to perform on an entity
+     * @param callback pass the result or thrown exception 
+     */
+    public <R, X extends Exception> void invokeSync(String entityId, ThrowingInvocation<? super E, R, X> action, 
+            BiConsumer<R, Throwable> callback) {
         try {
             R result = invokeSync(entityId, action);
             callback.accept(result, null);
@@ -225,41 +312,62 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         }
     }
 
+    /**
+     * Invoke an asynchronous action on an entity. Asynchronous action return completion stage as result.
+     * @param <R> type of response
+     * @param entityId id of entity
+     * @param action asynchronous action to invoke on an entity
+     * @return completion stage of result
+     */
     public <R> CompletionStage<R> invokeAsync(String entityId, Function<? super E, CompletionStage<R>> action) {
         E entity = prepareInvocation(entityId);
         return
                 action.apply(entity).handle((r, t) -> {
                     handleCompletion(entityId, entity, t);
                     return r;
-                });
+        });
     }
 
+    /**
+     * Invoke asynchronous action on the entity and pass the result to a callback.
+     * @param <R> type of response
+     * @param entityId id of entity
+     * @param action asynchronous action
+     * @param callback callback accepting the result of the call, which is either answer or a throwable
+     * @return completion stage of result
+     */
     public <R> CompletionStage<R> invokeAsync(String entityId, Function<? super E, CompletionStage<R>> action, BiConsumer<R, Throwable> callback) {
         return invokeAsync(entityId, action).whenComplete(callback);
     }
 
+    /**
+     * Interface describing completion handler
+     */
+    @FunctionalInterface
     public interface CompletionHandler {
         Throwable completed(Object result, Throwable exceptionResult);
     }
 
-
-    public <R> void invokeWithCallback(String entityId, BiConsumer<E, CompletionHandler> action) {
+    /**
+     * Let client invoke the action, and transfer the result to invocation handler.
+     * @param entityId id of entity
+     * @param action an action that will call back to provided completion handler.
+     */
+    public void invokeWithCallback(String entityId, BiConsumer<E, CompletionHandler> action) {
         E entity = prepareInvocation(entityId);
         action.accept(entity, (r, t) -> handleCompletion(entityId, entity, t));
     }
 
-
     /**
-     * Common logic to execute after the invocation of request completes.
-     * Handles:
+     * Common logic to execute after the invocation of request completes. Handles:
      * <ul>
      * <li>Removal of entity if event storing failed (e. g. entity was stale)</li>
      * <li>Storing snapshots</li>
      * </ul>
      *
      * @param entityId identity of the entity
-     * @param entity   instance of the entity
-     * @param t        non-null, when invocation completed with an exception
+     * @param entity instance of the entity
+     * @param t non-null, when invocation completed with an exception
      */
     private Throwable handleCompletion(String entityId, E entity, Throwable t) {
         if (entity.getInvocationState().getState() == EventSourcedEntity.EntityInvocationState.EVENT_STORE_FAILED) {
@@ -294,28 +402,11 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         conf.lifecycle().dispose(entity);
     }
 
-
     /**
      * Common logic for obtaining entity instance from the cache.
-     * <h1>Detailed flow of instantiation of an entity:</h1>
-     * <ol>
-     * <li>If the runtime has an instance in its cache, it will used the cached entity</li>
-     * <li>Otherwise it will call {@link Lifecycle#instantiate(String)} to create uninitialized instance</li>
-     * <li>If snapshot exists in {@link Persistence#getSnapshotStore() SnapshotStore}, it will be offered to an entity by
-     * invoking its method {@link EventSourcedEntity#restoreFromSnapshot(Object)}</li>
-     * <li>If entity accepts the snapshot, all events from the history past the snapshot will be passed, in order
-     * they were created, into method {@link EventSourcedEntity#updateState(Event)}. If entity did not accept
-     * the snapshots, all events for the entity will be replayed.</li>
-     * <li>{@link EventSourcedEntity#initialize()} is called to let entity initialize its internal processes.</li>
-     * </ol>
-     * After these steps the entity is initialized and requests will be passed to it.
-     *
-     * @param entityId the identity of an entity
-     * @return instance is latest known state
-     * @see #lookup(String)  for the actual lookup
      */
     private E lookup(String entityId) {
-        //MP: If instantiate and recover fails, then there is nothing you can do. So ex will just propagate to client.
+        // If instantiate and recover fails, then there is nothing you can do. So ex will just propagate to client.
         E entity = conf.memory().lookup(entityId, this::recoverEntity);
         if (!conf.persistence().isInLatestKnownState(entity)) {
             E recoveredEntity = recover(entity);
@@ -340,7 +431,8 @@ public class EntityInvocationHandler<E extends EventSourcedEntity> {
         long recoveryStart = System.currentTimeMillis();
         entity.getInvocationState().recovering();
         E recoveredEntity = recoverFromSnapshot(entity);
-        try (EventLog.StoredEvents<? extends Event> events = conf.persistence().getEventLog().readEvents(entity.getIdentity(), entity.getStateVersion())) {
+        try (EventLog.StoredEvents<? extends Event> events = 
+                conf.persistence().getEventLog().readEvents(entity.getIdentity(), entity.getStateVersion())) {
             AtomicInteger recoveredEventsCount = new AtomicInteger();
             events.foreach(event -> {
                 try {

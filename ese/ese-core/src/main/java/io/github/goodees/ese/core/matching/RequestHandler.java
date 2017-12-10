@@ -85,7 +85,7 @@ public class RequestHandler {
     }
 
     /**
-     * Create builder, that handles unmatched request with {@link #defaultUnsupportedRequestHandler(io.github.goodees.ese.Request) }
+     * Create builder, that handles unmatched request with {@link #defaultUnsupportedRequestHandler(Request)}  }
      * @return a builder
      */
     public static Builder withDefaultFallback() {
