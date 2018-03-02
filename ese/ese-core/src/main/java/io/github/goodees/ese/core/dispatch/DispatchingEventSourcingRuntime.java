@@ -24,6 +24,7 @@ import io.github.goodees.ese.core.EntityInvocationHandler;
 import io.github.goodees.ese.core.EventSourcedEntity;
 import io.github.goodees.ese.core.EventSourcingRuntimeBase;
 import io.github.goodees.ese.core.Request;
+import io.github.goodees.ese.core.store.EventStoreException;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -232,7 +233,7 @@ public abstract class DispatchingEventSourcingRuntime<E extends EventSourcedEnti
                     invokeEntity(entity, request, (rs, t) -> {
                         try {
                             Throwable unwrapped = Dispatcher.unwrapCompletionException(t);
-                            unwrapped = handleCompletion.completed(rs, unwrapped);
+                            handleCompletion.completed(rs, unwrapped);
                             callback.accept(rs, unwrapped);
                         } catch (Exception e) {
                             logger.error("Entity with ID {} failed on completion of request {} ", entityId, request, e);
@@ -241,8 +242,12 @@ public abstract class DispatchingEventSourcingRuntime<E extends EventSourcedEnti
                     });
                 } catch (Exception e) {
                     logger.error("Entity with ID {} failed on invocation of request {}. Entity: {}", entityId, request, entity, e);
-                    Throwable t = handleCompletion.completed(null, e);
-                    callback.accept(null, t);
+                    try {
+                        handleCompletion.completed(null, e);
+                        callback.accept(null, e);
+                    } catch (EventStoreException ese) {
+                        callback.accept(null, ese);
+                    }
                 }
             });
         }
